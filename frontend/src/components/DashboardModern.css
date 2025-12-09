@@ -101,6 +101,53 @@
   cursor: not-allowed;
 }
 
+.btn-live {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 8px;
+  color: var(--text-tertiary);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+.btn-live:hover {
+  background: rgba(239, 68, 68, 0.15);
+  border-color: rgba(239, 68, 68, 0.5);
+}
+
+.btn-live.active {
+  background: rgba(239, 68, 68, 0.2);
+  border-color: #ef4444;
+  color: #ef4444;
+  box-shadow: 0 0 10px rgba(239, 68, 68, 0.3);
+}
+
+.btn-live.active span {
+  color: #ef4444;
+  font-weight: 700;
+}
+
+.btn-live .pulsing {
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(1.1);
+  }
+}
+
 .spinning {
   animation: spin 1s linear infinite;
 }

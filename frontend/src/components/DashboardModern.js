@@ -16,7 +16,8 @@ import {
   BarChart3,
   ExternalLink,
   Sun,
-  Moon
+  Moon,
+  Radio
 } from 'lucide-react';
 
 const DashboardModern = ({ user, onLogout }) => {
@@ -38,6 +39,11 @@ const DashboardModern = ({ user, onLogout }) => {
     // Carrega tema do localStorage ou usa 'dark' como padrão
     const savedTheme = localStorage.getItem('theme');
     return savedTheme || 'dark';
+  });
+  const [liveMode, setLiveMode] = useState(() => {
+    // Carrega preferência de live mode do localStorage (padrão: ativado)
+    const saved = localStorage.getItem('liveMode');
+    return saved !== null ? saved === 'true' : true;
   });
 
   // Função para extrair título do mercado
@@ -473,17 +479,25 @@ const DashboardModern = ({ user, onLogout }) => {
     // Depois busca dados atualizados do servidor
     fetchData(true);
     
-    // Atualiza silenciosamente a cada 20 segundos (sincronizado com backend)
-    const interval = setInterval(() => fetchData(false), 20000);
-    
     // Atualiza indicador de tempo a cada segundo
     const timeInterval = setInterval(() => setCurrentTime(new Date()), 1000);
     
     return () => {
-      clearInterval(interval);
       clearInterval(timeInterval);
     };
   }, [fetchData]);
+
+  // Efeito para atualizações automáticas quando live mode está ativado
+  useEffect(() => {
+    if (!liveMode) return; // Não atualiza se live mode estiver desativado
+    
+    // Atualiza silenciosamente a cada 20 segundos (sincronizado com backend)
+    const interval = setInterval(() => fetchData(false), 20000);
+    
+    return () => {
+      clearInterval(interval);
+    };
+  }, [liveMode, fetchData]);
 
   // Aplica tema ao documento
   useEffect(() => {
@@ -494,6 +508,15 @@ const DashboardModern = ({ user, onLogout }) => {
   // Toggle de tema
   const toggleTheme = () => {
     setTheme(prev => prev === 'dark' ? 'light' : 'dark');
+  };
+
+  // Toggle de live mode
+  const toggleLiveMode = () => {
+    setLiveMode(prev => {
+      const newValue = !prev;
+      localStorage.setItem('liveMode', newValue.toString());
+      return newValue;
+    });
   };
 
   // Filtra, deduplica e ordena oportunidades (MEMOIZADO para performance)
@@ -633,6 +656,15 @@ const DashboardModern = ({ user, onLogout }) => {
           </div>
 
           <div className="header-right">
+            <button 
+              className={`btn-live ${liveMode ? 'active' : ''}`} 
+              onClick={toggleLiveMode}
+              title={liveMode ? 'Desativar atualizações automáticas' : 'Ativar atualizações automáticas'}
+            >
+              <Radio size={18} className={liveMode ? 'pulsing' : ''} />
+              <span>{liveMode ? 'LIVE' : 'OFF'}</span>
+            </button>
+
             <button className="btn-theme-toggle" onClick={toggleTheme} title={`Alternar para tema ${theme === 'dark' ? 'claro' : 'escuro'}`}>
               {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
             </button>
