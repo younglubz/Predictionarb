@@ -34,7 +34,7 @@ class ArbitrageMonitor:
             # SeerExchange(),   # Gnosis Chain - desabilitado
             # AugurExchange(),  # API descontinuada
         ]
-        self.matcher = ImprovedEventMatcher(similarity_threshold=0.65, max_date_diff_days=14)
+        self.matcher = ImprovedEventMatcher(similarity_threshold=0.55, max_date_diff_days=21)
         self.engine = ArbitrageEngine()
         self.combinatorial = CombinatorialArbitrage()  # Arbitragem combinatória
         self.probability_engine = ProbabilityArbitrageEngine(self.matcher)  # Arbitragem por probabilidade

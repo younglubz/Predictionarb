@@ -447,37 +447,55 @@ class ImprovedEventMatcher:
             
             type_pair = (type1, type2)
             
-            # Se eh pergunta aberta vs binaria especifica, REJEITA
+            # Se eh pergunta aberta vs binaria especifica, PERMITE se tiverem candidatos em comum
+            # ou se a similaridade geral for alta (pode ser o mesmo evento com formulação diferente)
             if type1 == "who_will_win" and type2 == "will_x_win":
-                return False, 0.0, {
-                    "reason": "different_question_types",
-                    "type1": type1,
-                    "type2": type2
-                }
+                # Se há candidatos em comum, permite (ex: "Who will win?" vs "Will Biden win?")
+                if candidates1 and candidates2 and (candidates1 & candidates2):
+                    pass  # Permite
+                # Se não há candidatos mas similaridade alta, também permite
+                # (será verificado depois pela similaridade geral)
+                elif not candidates1 or not candidates2:
+                    pass  # Permite - pode ser o mesmo evento
+                else:
+                    # Só rejeita se há candidatos diferentes E nenhum em comum
+                    return False, 0.0, {
+                        "reason": "different_question_types_and_candidates",
+                        "type1": type1,
+                        "type2": type2
+                    }
             if type2 == "who_will_win" and type1 == "will_x_win":
-                return False, 0.0, {
-                    "reason": "different_question_types",
-                    "type1": type1,
-                    "type2": type2
-                }
+                # Mesma lógica acima
+                if candidates1 and candidates2 and (candidates1 & candidates2):
+                    pass  # Permite
+                elif not candidates1 or not candidates2:
+                    pass  # Permite
+                else:
+                    return False, 0.0, {
+                        "reason": "different_question_types_and_candidates",
+                        "type1": type1,
+                        "type2": type2
+                    }
         
         # REGRA CRITICA #7: CANDIDATOS especificos devem ser os mesmos
         # Ja extraimos os candidatos acima (candidates1, candidates2)
         # Candidatos ja vem normalizados (aliases resolvidos)
         
         if candidates1 and candidates2:
-            # Se ambos mencionam candidatos mas nenhum em comum, rejeita
+            # Se ambos mencionam candidatos mas nenhum em comum, verifica mais cuidadosamente
             common_candidates = candidates1 & candidates2
             if not common_candidates:
                 # Permite se um dos mercados tem MUITOS candidatos (lista geral)
-                # vs outro tem poucos (especifico)
-                if len(candidates1) < 5 and len(candidates2) < 5:
-                    return False, 0.0, {
-                        "reason": "different_candidates",
-                        "candidates1": list(candidates1),
-                        "candidates2": list(candidates2),
-                        "note": "Candidatos ja normalizados via aliases"
-                    }
+                # vs outro tem poucos (especifico) - pode ser o mesmo evento
+                if len(candidates1) >= 5 or len(candidates2) >= 5:
+                    pass  # Permite - um é lista geral
+                # Se ambos têm poucos candidatos E nenhum em comum, pode ser problema
+                # MAS não rejeita imediatamente - deixa a similaridade geral decidir
+                # (pode ser que os candidatos não foram extraídos corretamente)
+                elif len(candidates1) < 3 and len(candidates2) < 3:
+                    # Só rejeita se ambos têm pouquíssimos candidatos E nenhum em comum
+                    # e a similaridade de texto for baixa (será verificado depois)
+                    pass  # Deixa passar para verificar similaridade geral
         
         # Calcula similaridade melhorada
         similarity = self.calculate_enhanced_similarity(market1.question, market2.question)
@@ -492,8 +510,13 @@ class ImprovedEventMatcher:
             "exchange2": market2.exchange
         }
         
-        # Aumenta threshold para evitar falsos positivos
+        # Threshold de similaridade (reduzido para capturar mais matches válidos)
         is_match = similarity >= self.similarity_threshold
+        
+        # BONUS: Se similaridade é muito alta (>0.75), aceita mesmo com pequenas diferenças
+        # em entidades (pode ser problema de extração ou formulação diferente)
+        if similarity >= 0.75:
+            is_match = True
         
         return is_match, similarity, details
     
