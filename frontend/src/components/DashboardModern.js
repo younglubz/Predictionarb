@@ -251,7 +251,12 @@ const DashboardModern = ({ user, onLogout }) => {
 
     try {
       // Busca apenas oportunidades (mais rápido)
-      const oppsResponse = await fetch('http://localhost:8000/opportunities', {
+      // Detecta se está em produção (GitHub Pages) ou desenvolvimento
+      const API_URL = process.env.NODE_ENV === 'production' 
+        ? 'https://your-backend-url.herokuapp.com' // Substitua pela URL do seu backend em produção
+        : 'http://localhost:8000';
+      
+      const oppsResponse = await fetch(`${API_URL}/opportunities`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
