@@ -65,6 +65,66 @@ const DashboardModern = ({ user, onLogout }) => {
       .trim();
   };
 
+  // Função auxiliar para gerar instruções específicas por exchange
+  const getExchangeInstructions = (exchange, marketQuestion, outcome, price, url) => {
+    const exchangeLower = exchange?.toLowerCase() || '';
+    const instructions = [];
+    
+    if (exchangeLower.includes('polymarket')) {
+      instructions.push(`   📍 LOCALIZAÇÃO NA INTERFACE:`);
+      instructions.push(`      • Ao acessar o link, você verá o mercado "${marketQuestion}"`);
+      instructions.push(`      • Procure pela seção de opções de compra/venda`);
+      instructions.push(`      • Identifique a opção "${outcome === 'YES' ? 'Yes' : 'No'}" (ou "${outcome}")`);
+      instructions.push(`      • Verifique que o preço está próximo de $${price.toFixed(2)} (${(price * 100).toFixed(1)}%)`);
+      instructions.push(`   🖱️ COMO COMPRAR:`);
+      instructions.push(`      • Clique no botão "Buy" ou "Comprar" da opção ${outcome === 'YES' ? 'Yes' : 'No'}`);
+      instructions.push(`      • Confirme que está comprando a opção correta: "${outcome === 'YES' ? 'Yes' : 'No'}"`);
+      instructions.push(`      • Insira a quantidade desejada e confirme a ordem`);
+    } else if (exchangeLower.includes('kalshi')) {
+      instructions.push(`   📍 LOCALIZAÇÃO NA INTERFACE:`);
+      instructions.push(`      • Ao acessar o link, você verá o mercado "${marketQuestion}"`);
+      instructions.push(`      • Procure pelas opções de "Yes" e "No"`);
+      instructions.push(`      • Identifique a opção "${outcome === 'YES' ? 'Yes' : 'No'}"`);
+      instructions.push(`      • Verifique que o preço está próximo de $${price.toFixed(2)} (${(price * 100).toFixed(1)}%)`);
+      instructions.push(`   🖱️ COMO COMPRAR:`);
+      instructions.push(`      • Clique na opção "${outcome === 'YES' ? 'Yes' : 'No'}"`);
+      instructions.push(`      • Selecione "Buy" (Comprar) no menu de ações`);
+      instructions.push(`      • Confirme a quantidade e o preço antes de executar`);
+    } else if (exchangeLower.includes('predictit')) {
+      instructions.push(`   📍 LOCALIZAÇÃO NA INTERFACE:`);
+      instructions.push(`      • Ao acessar o link, você verá o mercado "${marketQuestion}"`);
+      instructions.push(`      • Procure pelas opções de contrato disponíveis`);
+      instructions.push(`      • Identifique o contrato "${outcome === 'YES' ? 'Yes' : 'No'}"`);
+      instructions.push(`      • Verifique que o preço está próximo de $${price.toFixed(2)} (${(price * 100).toFixed(1)}%)`);
+      instructions.push(`   🖱️ COMO COMPRAR:`);
+      instructions.push(`      • Clique no botão "Buy" do contrato ${outcome === 'YES' ? 'Yes' : 'No'}`);
+      instructions.push(`      • Confirme que está comprando o contrato correto`);
+      instructions.push(`      • Insira a quantidade de contratos e confirme`);
+    } else if (exchangeLower.includes('manifold')) {
+      instructions.push(`   📍 LOCALIZAÇÃO NA INTERFACE:`);
+      instructions.push(`      • Ao acessar o link, você verá o mercado "${marketQuestion}"`);
+      instructions.push(`      • Procure pela barra de probabilidade`);
+      instructions.push(`      • Identifique a opção "${outcome === 'YES' ? 'Yes' : 'No'}"`);
+      instructions.push(`      • Verifique que a probabilidade está próxima de ${(price * 100).toFixed(1)}%`);
+      instructions.push(`   🖱️ COMO COMPRAR:`);
+      instructions.push(`      • Clique na opção "${outcome === 'YES' ? 'Yes' : 'No'}"`);
+      instructions.push(`      • Selecione "Buy" e insira o valor desejado`);
+      instructions.push(`      • Confirme a transação`);
+    } else {
+      instructions.push(`   📍 LOCALIZAÇÃO NA INTERFACE:`);
+      instructions.push(`      • Ao acessar o link, você verá o mercado "${marketQuestion}"`);
+      instructions.push(`      • Procure pelas opções disponíveis`);
+      instructions.push(`      • Identifique a opção "${outcome === 'YES' ? 'Yes' : 'No'}"`);
+      instructions.push(`      • Verifique que o preço está próximo de $${price.toFixed(2)} (${(price * 100).toFixed(1)}%)`);
+      instructions.push(`   🖱️ COMO COMPRAR:`);
+      instructions.push(`      • Selecione a opção "${outcome === 'YES' ? 'Yes' : 'No'}"`);
+      instructions.push(`      • Clique em "Buy" ou "Comprar"`);
+      instructions.push(`      • Confirme a ordem`);
+    }
+    
+    return instructions;
+  };
+
   // Função para gerar passos de execução detalhados
   const generateExecutionSteps = (opp) => {
     const steps = [];
@@ -77,16 +137,34 @@ const DashboardModern = ({ user, onLogout }) => {
       steps.push(`   Spread detectado: ${(opp.spread_pct || 0).toFixed(2)}% de diferença entre exchanges`);
       steps.push(``);
       steps.push(`1️⃣ PASSO 1: Comprar na ${exchange1Name} (menor probabilidade)`);
-      steps.push(`   • Acesse: ${opp.market1_url || `${exchange1Name} - ${opp.market1_question}`}`);
-      steps.push(`   • Mercado: "${opp.market1_question}"`);
-      steps.push(`   • Ação: Comprar posição ${opp.market1_outcome}`);
-      steps.push(`   • Preço: $${(opp.market1_price || opp.probability_low || 0).toFixed(2)} (${((opp.probability_low || opp.market1_price || 0) * 100).toFixed(1)}%)`);
+      steps.push(`   🔗 Link direto: ${opp.market1_url || 'N/A'}`);
+      steps.push(`   📋 Mercado completo: "${opp.market1_question}"`);
+      steps.push(`   ✅ Opção a comprar: "${opp.market1_outcome === 'YES' ? 'Yes' : 'No'}"`);
+      steps.push(`   💰 Preço esperado: $${(opp.market1_price || opp.probability_low || 0).toFixed(2)} (${((opp.probability_low || opp.market1_price || 0) * 100).toFixed(1)}%)`);
+      steps.push(`   💵 Liquidez disponível: $${(opp.market1_liquidity || 0).toFixed(0)}`);
+      steps.push(``);
+      getExchangeInstructions(
+        opp.exchange1,
+        opp.market1_question,
+        opp.market1_outcome || 'YES',
+        opp.market1_price || opp.probability_low || 0,
+        opp.market1_url
+      ).forEach(inst => steps.push(inst));
       steps.push(``);
       steps.push(`2️⃣ PASSO 2: Vender na ${exchange2Name} (maior probabilidade)`);
-      steps.push(`   • Acesse: ${opp.market2_url || `${exchange2Name} - ${opp.market2_question}`}`);
-      steps.push(`   • Mercado: "${opp.market2_question}"`);
-      steps.push(`   • Ação: Vender posição ${opp.market2_outcome}`);
-      steps.push(`   • Preço: $${(opp.market2_price || opp.probability_high || 0).toFixed(2)} (${((opp.probability_high || opp.market2_price || 0) * 100).toFixed(1)}%)`);
+      steps.push(`   🔗 Link direto: ${opp.market2_url || 'N/A'}`);
+      steps.push(`   📋 Mercado completo: "${opp.market2_question}"`);
+      steps.push(`   ✅ Opção a vender: "${opp.market2_outcome === 'YES' ? 'Yes' : 'No'}"`);
+      steps.push(`   💰 Preço esperado: $${(opp.market2_price || opp.probability_high || 0).toFixed(2)} (${((opp.probability_high || opp.market2_price || 0) * 100).toFixed(1)}%)`);
+      steps.push(`   💵 Liquidez disponível: $${(opp.market2_liquidity || 0).toFixed(0)}`);
+      steps.push(``);
+      getExchangeInstructions(
+        opp.exchange2,
+        opp.market2_question,
+        opp.market2_outcome || 'YES',
+        opp.market2_price || opp.probability_high || 0,
+        opp.market2_url
+      ).forEach(inst => steps.push(inst));
       steps.push(``);
       steps.push(`3️⃣ PASSO 3: Aguardar resolução`);
       steps.push(`   • O lucro de ${(opp.profit_percent || 0).toFixed(2)}% será garantido após a resolução`);
@@ -105,18 +183,34 @@ const DashboardModern = ({ user, onLogout }) => {
       steps.push(`   • Mercado expira em ${(opp.time_to_expiry_hours || 0).toFixed(1)}h`);
       steps.push(``);
       steps.push(`1️⃣ PASSO 1: Comprar na ${exchange1Name} (menor probabilidade)`);
-      steps.push(`   • Acesse: ${opp.market1_url || `${exchange1Name} - ${opp.market1_question}`}`);
-      steps.push(`   • Mercado: "${opp.market1_question}"`);
-      steps.push(`   • Ação: Comprar posição ${opp.market1_outcome}`);
-      steps.push(`   • Preço: $${(opp.market1_price || opp.probability_low || 0).toFixed(2)} (${((opp.probability_low || opp.market1_price || 0) * 100).toFixed(1)}%)`);
-      steps.push(`   • Liquidez: $${(opp.market1_liquidity || 0).toFixed(0)}`);
+      steps.push(`   🔗 Link direto: ${opp.market1_url || 'N/A'}`);
+      steps.push(`   📋 Mercado completo: "${opp.market1_question}"`);
+      steps.push(`   ✅ Opção a comprar: "${opp.market1_outcome === 'YES' ? 'Yes' : 'No'}"`);
+      steps.push(`   💰 Preço esperado: $${(opp.market1_price || opp.probability_low || 0).toFixed(2)} (${((opp.probability_low || opp.market1_price || 0) * 100).toFixed(1)}%)`);
+      steps.push(`   💵 Liquidez disponível: $${(opp.market1_liquidity || 0).toFixed(0)}`);
+      steps.push(``);
+      getExchangeInstructions(
+        opp.exchange1,
+        opp.market1_question,
+        opp.market1_outcome || 'YES',
+        opp.market1_price || opp.probability_low || 0,
+        opp.market1_url
+      ).forEach(inst => steps.push(inst));
       steps.push(``);
       steps.push(`2️⃣ PASSO 2: Vender na ${exchange2Name} (maior probabilidade)`);
-      steps.push(`   • Acesse: ${opp.market2_url || `${exchange2Name} - ${opp.market2_question}`}`);
-      steps.push(`   • Mercado: "${opp.market2_question}"`);
-      steps.push(`   • Ação: Vender posição ${opp.market2_outcome}`);
-      steps.push(`   • Preço: $${(opp.market2_price || opp.probability_high || 0).toFixed(2)} (${((opp.probability_high || opp.market2_price || 0) * 100).toFixed(1)}%)`);
-      steps.push(`   • Liquidez: $${(opp.market2_liquidity || 0).toFixed(0)}`);
+      steps.push(`   🔗 Link direto: ${opp.market2_url || 'N/A'}`);
+      steps.push(`   📋 Mercado completo: "${opp.market2_question}"`);
+      steps.push(`   ✅ Opção a vender: "${opp.market2_outcome === 'YES' ? 'Yes' : 'No'}"`);
+      steps.push(`   💰 Preço esperado: $${(opp.market2_price || opp.probability_high || 0).toFixed(2)} (${((opp.probability_high || opp.market2_price || 0) * 100).toFixed(1)}%)`);
+      steps.push(`   💵 Liquidez disponível: $${(opp.market2_liquidity || 0).toFixed(0)}`);
+      steps.push(``);
+      getExchangeInstructions(
+        opp.exchange2,
+        opp.market2_question,
+        opp.market2_outcome || 'YES',
+        opp.market2_price || opp.probability_high || 0,
+        opp.market2_url
+      ).forEach(inst => steps.push(inst));
       steps.push(``);
       steps.push(`3️⃣ PASSO 3: Monitorar e fechar posição`);
       steps.push(`   • Lucro esperado: ${(opp.profit_percent || 0).toFixed(2)}%`);
@@ -129,23 +223,50 @@ const DashboardModern = ({ user, onLogout }) => {
       steps.push(`   Tipo: ${opp.strategy === 'complementary_buy' ? 'Comprar ambos (soma < 100%)' : 'Vender ambos (soma > 100%)'}`);
       steps.push(``);
       steps.push(`1️⃣ PASSO 1: Acessar ${exchange1Name}`);
-      steps.push(`   • Acesse: ${opp.market1_url || `${exchange1Name} - ${opp.market1_question}`}`);
-      steps.push(`   • Mercado: "${opp.market1_question}"`);
+      steps.push(`   🔗 Link direto: ${opp.market1_url || 'N/A'}`);
+      steps.push(`   📋 Mercado completo: "${opp.market1_question}"`);
+      steps.push(`   📍 IMPORTANTE: Este é um mercado com múltiplas opções no mesmo evento`);
       steps.push(``);
       if (opp.strategy === 'complementary_buy') {
-        steps.push(`2️⃣ PASSO 2: Comprar posição ${opp.market1_outcome}`);
-        steps.push(`   • Preço: $${(opp.market1_price || 0).toFixed(2)} (${((opp.market1_price || 0) * 100).toFixed(1)}%)`);
-        steps.push(`   • No mesmo mercado, compre também a posição ${opp.market2_outcome}`);
-        steps.push(`   • Preço: $${(opp.market2_price || 0).toFixed(2)} (${((opp.market2_price || 0) * 100).toFixed(1)}%)`);
-        steps.push(`   • Soma: ${(((opp.market1_price || 0) + (opp.market2_price || 0)) * 100).toFixed(1)}% < 100%`);
-        steps.push(`   • Isso garante lucro de ${(opp.profit_percent || 0).toFixed(2)}% independente do resultado`);
+        steps.push(`2️⃣ PASSO 2: Comprar AMBAS as posições no mesmo mercado`);
+        steps.push(`   ✅ Primeira opção a comprar: "${opp.market1_outcome === 'YES' ? 'Yes' : 'No'}"`);
+        steps.push(`      💰 Preço: $${(opp.market1_price || 0).toFixed(2)} (${((opp.market1_price || 0) * 100).toFixed(1)}%)`);
+        steps.push(`   ✅ Segunda opção a comprar: "${opp.market2_outcome === 'YES' ? 'Yes' : 'No'}"`);
+        steps.push(`      💰 Preço: $${(opp.market2_price || 0).toFixed(2)} (${((opp.market2_price || 0) * 100).toFixed(1)}%)`);
+        steps.push(`   📊 Soma total: ${(((opp.market1_price || 0) + (opp.market2_price || 0)) * 100).toFixed(1)}% < 100%`);
+        steps.push(`   💡 Isso garante lucro de ${(opp.profit_percent || 0).toFixed(2)}% independente do resultado`);
+        steps.push(``);
+        getExchangeInstructions(
+          opp.exchange1,
+          opp.market1_question,
+          opp.market1_outcome || 'YES',
+          opp.market1_price || 0,
+          opp.market1_url
+        ).forEach(inst => steps.push(inst));
+        steps.push(``);
+        steps.push(`   🔄 Depois, no MESMO mercado, compre também:`);
+        steps.push(`      ✅ Opção: "${opp.market2_outcome === 'YES' ? 'Yes' : 'No'}"`);
+        steps.push(`      💰 Preço: $${(opp.market2_price || 0).toFixed(2)}`);
       } else {
-        steps.push(`2️⃣ PASSO 2: Vender posição ${opp.market1_outcome}`);
-        steps.push(`   • Preço: $${(opp.market1_price || 0).toFixed(2)} (${((opp.market1_price || 0) * 100).toFixed(1)}%)`);
-        steps.push(`   • No mesmo mercado, venda também a posição ${opp.market2_outcome}`);
-        steps.push(`   • Preço: $${(opp.market2_price || 0).toFixed(2)} (${((opp.market2_price || 0) * 100).toFixed(1)}%)`);
-        steps.push(`   • Soma: ${(((opp.market1_price || 0) + (opp.market2_price || 0)) * 100).toFixed(1)}% > 100%`);
-        steps.push(`   • Isso garante lucro de ${(opp.profit_percent || 0).toFixed(2)}% após a resolução`);
+        steps.push(`2️⃣ PASSO 2: Vender AMBAS as posições no mesmo mercado`);
+        steps.push(`   ✅ Primeira opção a vender: "${opp.market1_outcome === 'YES' ? 'Yes' : 'No'}"`);
+        steps.push(`      💰 Preço: $${(opp.market1_price || 0).toFixed(2)} (${((opp.market1_price || 0) * 100).toFixed(1)}%)`);
+        steps.push(`   ✅ Segunda opção a vender: "${opp.market2_outcome === 'YES' ? 'Yes' : 'No'}"`);
+        steps.push(`      💰 Preço: $${(opp.market2_price || 0).toFixed(2)} (${((opp.market2_price || 0) * 100).toFixed(1)}%)`);
+        steps.push(`   📊 Soma total: ${(((opp.market1_price || 0) + (opp.market2_price || 0)) * 100).toFixed(1)}% > 100%`);
+        steps.push(`   💡 Isso garante lucro de ${(opp.profit_percent || 0).toFixed(2)}% após a resolução`);
+        steps.push(``);
+        getExchangeInstructions(
+          opp.exchange1,
+          opp.market1_question,
+          opp.market1_outcome || 'YES',
+          opp.market1_price || 0,
+          opp.market1_url
+        ).forEach(inst => steps.push(inst));
+        steps.push(``);
+        steps.push(`   🔄 Depois, no MESMO mercado, venda também:`);
+        steps.push(`      ✅ Opção: "${opp.market2_outcome === 'YES' ? 'Yes' : 'No'}"`);
+        steps.push(`      💰 Preço: $${(opp.market2_price || 0).toFixed(2)}`);
       }
     } else {
       // Arbitragem tradicional (entre exchanges)
@@ -153,16 +274,34 @@ const DashboardModern = ({ user, onLogout }) => {
       steps.push(`   Diferença de preço entre ${exchange1Name} e ${exchange2Name}`);
       steps.push(``);
       steps.push(`1️⃣ PASSO 1: Comprar na ${exchange1Name} (preço menor)`);
-      steps.push(`   • Acesse: ${opp.market1_url || `${exchange1Name} - ${opp.market1_question}`}`);
-      steps.push(`   • Mercado: "${opp.market1_question}"`);
-      steps.push(`   • Ação: Comprar posição ${opp.market1_outcome}`);
-      steps.push(`   • Preço: $${(opp.market1_price || 0).toFixed(2)}`);
+      steps.push(`   🔗 Link direto: ${opp.market1_url || 'N/A'}`);
+      steps.push(`   📋 Mercado completo: "${opp.market1_question}"`);
+      steps.push(`   ✅ Opção a comprar: "${opp.market1_outcome === 'YES' ? 'Yes' : 'No'}"`);
+      steps.push(`   💰 Preço esperado: $${(opp.market1_price || 0).toFixed(2)} (${((opp.market1_price || 0) * 100).toFixed(1)}%)`);
+      steps.push(`   💵 Liquidez disponível: $${(opp.market1_liquidity || 0).toFixed(0)}`);
+      steps.push(``);
+      getExchangeInstructions(
+        opp.exchange1,
+        opp.market1_question,
+        opp.market1_outcome || 'YES',
+        opp.market1_price || 0,
+        opp.market1_url
+      ).forEach(inst => steps.push(inst));
       steps.push(``);
       steps.push(`2️⃣ PASSO 2: Vender na ${exchange2Name} (preço maior)`);
-      steps.push(`   • Acesse: ${opp.market2_url || `${exchange2Name} - ${opp.market2_question}`}`);
-      steps.push(`   • Mercado: "${opp.market2_question}"`);
-      steps.push(`   • Ação: Vender posição ${opp.market2_outcome}`);
-      steps.push(`   • Preço: $${(opp.market2_price || 0).toFixed(2)}`);
+      steps.push(`   🔗 Link direto: ${opp.market2_url || 'N/A'}`);
+      steps.push(`   📋 Mercado completo: "${opp.market2_question}"`);
+      steps.push(`   ✅ Opção a vender: "${opp.market2_outcome === 'YES' ? 'Yes' : 'No'}"`);
+      steps.push(`   💰 Preço esperado: $${(opp.market2_price || 0).toFixed(2)} (${((opp.market2_price || 0) * 100).toFixed(1)}%)`);
+      steps.push(`   💵 Liquidez disponível: $${(opp.market2_liquidity || 0).toFixed(0)}`);
+      steps.push(``);
+      getExchangeInstructions(
+        opp.exchange2,
+        opp.market2_question,
+        opp.market2_outcome || 'YES',
+        opp.market2_price || 0,
+        opp.market2_url
+      ).forEach(inst => steps.push(inst));
       steps.push(``);
       steps.push(`3️⃣ PASSO 3: Lucro garantido`);
       steps.push(`   • Diferença: $${((opp.market2_price || 0) - (opp.market1_price || 0)).toFixed(2)}`);
