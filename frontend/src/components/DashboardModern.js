@@ -1,0 +1,916 @@
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import '../theme.css';
+import './DashboardModern.css';
+import { 
+  TrendingUp, 
+  LogOut, 
+  User, 
+  DollarSign, 
+  Activity, 
+  Filter,
+  Search,
+  RefreshCw,
+  AlertCircle,
+  Clock,
+  TrendingDown,
+  BarChart3,
+  ExternalLink,
+  Sun,
+  Moon
+} from 'lucide-react';
+
+const DashboardModern = ({ user, onLogout }) => {
+  const [opportunities, setOpportunities] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [lastUpdate, setLastUpdate] = useState(null);
+  const [filters, setFilters] = useState({
+    minProfit: 0,
+    maxProfit: 100,
+    search: '',
+    exchange: 'all',
+    sortBy: 'profit',
+    arbitrageType: 'all' // 'all', 'combinatorial', 'traditional', 'probability', 'short_term'
+  });
+  const [showFilters, setShowFilters] = useState(false);
+  const [currentTime, setCurrentTime] = useState(new Date()); // Para atualizar indicador em tempo real
+  const [theme, setTheme] = useState(() => {
+    // Carrega tema do localStorage ou usa 'dark' como padrão
+    const savedTheme = localStorage.getItem('theme');
+    return savedTheme || 'dark';
+  });
+
+  // Função para extrair título do mercado
+  const extractTitle = (question) => {
+    if (!question) return 'Oportunidade de Arbitragem';
+    // Remove prefixos comuns e limpa o título
+    let title = question
+      .replace(/^(Will |Who will |What will |When will |How many |Which )/i, '')
+      .replace(/\?.*$/, '')
+      .replace(/ - (YES|NO|Republican|Democratic|Yes|No)$/i, '')
+      .trim();
+    // Capitaliza primeira letra
+    return title.charAt(0).toUpperCase() + title.slice(1);
+  };
+
+  // Função para criar chave única de tema (para deduplicação)
+  const getThemeKey = (opp) => {
+    const question = opp.market1_question || opp.explanation || '';
+    // Extrai o tema base removendo variações
+    return question
+      .toLowerCase()
+      .replace(/\s+/g, ' ')
+      .replace(/ - (yes|no|republican|democratic)$/i, '')
+      .replace(/\?.*$/, '')
+      .trim();
+  };
+
+  // Função para gerar passos de execução detalhados
+  const generateExecutionSteps = (opp) => {
+    const steps = [];
+    const exchange1Name = opp.exchange1?.charAt(0).toUpperCase() + opp.exchange1?.slice(1) || 'Exchange 1';
+    const exchange2Name = opp.exchange2?.charAt(0).toUpperCase() + opp.exchange2?.slice(1) || 'Exchange 2';
+    
+    if (opp.type === 'probability') {
+      // Arbitragem por probabilidade (entre exchanges)
+      steps.push(`📊 ESTRATÉGIA: Arbitragem por Spread de Probabilidade`);
+      steps.push(`   Spread detectado: ${(opp.spread_pct || 0).toFixed(2)}% de diferença entre exchanges`);
+      steps.push(``);
+      steps.push(`1️⃣ PASSO 1: Comprar na ${exchange1Name} (menor probabilidade)`);
+      steps.push(`   • Acesse: ${opp.market1_url || `${exchange1Name} - ${opp.market1_question}`}`);
+      steps.push(`   • Mercado: "${opp.market1_question}"`);
+      steps.push(`   • Ação: Comprar posição ${opp.market1_outcome}`);
+      steps.push(`   • Preço: $${(opp.market1_price || opp.probability_low || 0).toFixed(2)} (${((opp.probability_low || opp.market1_price || 0) * 100).toFixed(1)}%)`);
+      steps.push(``);
+      steps.push(`2️⃣ PASSO 2: Vender na ${exchange2Name} (maior probabilidade)`);
+      steps.push(`   • Acesse: ${opp.market2_url || `${exchange2Name} - ${opp.market2_question}`}`);
+      steps.push(`   • Mercado: "${opp.market2_question}"`);
+      steps.push(`   • Ação: Vender posição ${opp.market2_outcome}`);
+      steps.push(`   • Preço: $${(opp.market2_price || opp.probability_high || 0).toFixed(2)} (${((opp.probability_high || opp.market2_price || 0) * 100).toFixed(1)}%)`);
+      steps.push(``);
+      steps.push(`3️⃣ PASSO 3: Aguardar resolução`);
+      steps.push(`   • O lucro de ${(opp.profit_percent || 0).toFixed(2)}% será garantido após a resolução`);
+      steps.push(`   • O spread de ${(opp.spread_pct || 0).toFixed(2)}% cobre taxas e garante lucro líquido`);
+    } else if (opp.type === 'short_term') {
+      // Arbitragem de curto prazo (trades rápidos/diários)
+      steps.push(`⚡ ESTRATÉGIA: Arbitragem de Curto Prazo (Trade Rápido)`);
+      steps.push(`   ⏱️ Tempo até expiração: ${(opp.time_to_expiry_hours || 0).toFixed(1)} horas`);
+      steps.push(`   🚀 Velocidade de execução: ${opp.execution_speed || 'médio'}`);
+      steps.push(`   ⚠️ Nível de risco: ${opp.risk_level || 'médio'}`);
+      steps.push(`   📊 Spread detectado: ${(opp.spread_pct || 0).toFixed(2)}% de diferença`);
+      steps.push(``);
+      steps.push(`⚠️ ATENÇÃO: Esta é uma oportunidade de CURTO PRAZO!`);
+      steps.push(`   • Oportunidade pode desaparecer rapidamente`);
+      steps.push(`   • Execute o trade o mais rápido possível`);
+      steps.push(`   • Mercado expira em ${(opp.time_to_expiry_hours || 0).toFixed(1)}h`);
+      steps.push(``);
+      steps.push(`1️⃣ PASSO 1: Comprar na ${exchange1Name} (menor probabilidade)`);
+      steps.push(`   • Acesse: ${opp.market1_url || `${exchange1Name} - ${opp.market1_question}`}`);
+      steps.push(`   • Mercado: "${opp.market1_question}"`);
+      steps.push(`   • Ação: Comprar posição ${opp.market1_outcome}`);
+      steps.push(`   • Preço: $${(opp.market1_price || opp.probability_low || 0).toFixed(2)} (${((opp.probability_low || opp.market1_price || 0) * 100).toFixed(1)}%)`);
+      steps.push(`   • Liquidez: $${(opp.market1_liquidity || 0).toFixed(0)}`);
+      steps.push(``);
+      steps.push(`2️⃣ PASSO 2: Vender na ${exchange2Name} (maior probabilidade)`);
+      steps.push(`   • Acesse: ${opp.market2_url || `${exchange2Name} - ${opp.market2_question}`}`);
+      steps.push(`   • Mercado: "${opp.market2_question}"`);
+      steps.push(`   • Ação: Vender posição ${opp.market2_outcome}`);
+      steps.push(`   • Preço: $${(opp.market2_price || opp.probability_high || 0).toFixed(2)} (${((opp.probability_high || opp.market2_price || 0) * 100).toFixed(1)}%)`);
+      steps.push(`   • Liquidez: $${(opp.market2_liquidity || 0).toFixed(0)}`);
+      steps.push(``);
+      steps.push(`3️⃣ PASSO 3: Monitorar e fechar posição`);
+      steps.push(`   • Lucro esperado: ${(opp.profit_percent || 0).toFixed(2)}%`);
+      steps.push(`   • Lucro líquido: $${(opp.net_profit || 0).toFixed(2)} (para $100 investidos)`);
+      steps.push(`   • Fechar posição antes da expiração ou aguardar resolução`);
+      steps.push(`   • ⚠️ Risco: ${opp.risk_level || 'médio'} - execute rapidamente!`);
+    } else if (opp.type === 'combinatorial') {
+      // Arbitragem combinatória (mesma exchange)
+      steps.push(`🧮 ESTRATÉGIA: Arbitragem Combinatória (${opp.strategy?.replace('_', ' ') || 'complementar'})`);
+      steps.push(`   Tipo: ${opp.strategy === 'complementary_buy' ? 'Comprar ambos (soma < 100%)' : 'Vender ambos (soma > 100%)'}`);
+      steps.push(``);
+      steps.push(`1️⃣ PASSO 1: Acessar ${exchange1Name}`);
+      steps.push(`   • Acesse: ${opp.market1_url || `${exchange1Name} - ${opp.market1_question}`}`);
+      steps.push(`   • Mercado: "${opp.market1_question}"`);
+      steps.push(``);
+      if (opp.strategy === 'complementary_buy') {
+        steps.push(`2️⃣ PASSO 2: Comprar posição ${opp.market1_outcome}`);
+        steps.push(`   • Preço: $${(opp.market1_price || 0).toFixed(2)} (${((opp.market1_price || 0) * 100).toFixed(1)}%)`);
+        steps.push(`   • No mesmo mercado, compre também a posição ${opp.market2_outcome}`);
+        steps.push(`   • Preço: $${(opp.market2_price || 0).toFixed(2)} (${((opp.market2_price || 0) * 100).toFixed(1)}%)`);
+        steps.push(`   • Soma: ${(((opp.market1_price || 0) + (opp.market2_price || 0)) * 100).toFixed(1)}% < 100%`);
+        steps.push(`   • Isso garante lucro de ${(opp.profit_percent || 0).toFixed(2)}% independente do resultado`);
+      } else {
+        steps.push(`2️⃣ PASSO 2: Vender posição ${opp.market1_outcome}`);
+        steps.push(`   • Preço: $${(opp.market1_price || 0).toFixed(2)} (${((opp.market1_price || 0) * 100).toFixed(1)}%)`);
+        steps.push(`   • No mesmo mercado, venda também a posição ${opp.market2_outcome}`);
+        steps.push(`   • Preço: $${(opp.market2_price || 0).toFixed(2)} (${((opp.market2_price || 0) * 100).toFixed(1)}%)`);
+        steps.push(`   • Soma: ${(((opp.market1_price || 0) + (opp.market2_price || 0)) * 100).toFixed(1)}% > 100%`);
+        steps.push(`   • Isso garante lucro de ${(opp.profit_percent || 0).toFixed(2)}% após a resolução`);
+      }
+    } else {
+      // Arbitragem tradicional (entre exchanges)
+      steps.push(`🔄 ESTRATÉGIA: Arbitragem Tradicional (Cross-Exchange)`);
+      steps.push(`   Diferença de preço entre ${exchange1Name} e ${exchange2Name}`);
+      steps.push(``);
+      steps.push(`1️⃣ PASSO 1: Comprar na ${exchange1Name} (preço menor)`);
+      steps.push(`   • Acesse: ${opp.market1_url || `${exchange1Name} - ${opp.market1_question}`}`);
+      steps.push(`   • Mercado: "${opp.market1_question}"`);
+      steps.push(`   • Ação: Comprar posição ${opp.market1_outcome}`);
+      steps.push(`   • Preço: $${(opp.market1_price || 0).toFixed(2)}`);
+      steps.push(``);
+      steps.push(`2️⃣ PASSO 2: Vender na ${exchange2Name} (preço maior)`);
+      steps.push(`   • Acesse: ${opp.market2_url || `${exchange2Name} - ${opp.market2_question}`}`);
+      steps.push(`   • Mercado: "${opp.market2_question}"`);
+      steps.push(`   • Ação: Vender posição ${opp.market2_outcome}`);
+      steps.push(`   • Preço: $${(opp.market2_price || 0).toFixed(2)}`);
+      steps.push(``);
+      steps.push(`3️⃣ PASSO 3: Lucro garantido`);
+      steps.push(`   • Diferença: $${((opp.market2_price || 0) - (opp.market1_price || 0)).toFixed(2)}`);
+      steps.push(`   • Lucro líquido após taxas: ${(opp.profit_percent || 0).toFixed(2)}%`);
+    }
+    
+    // Adiciona passos finais comuns
+    steps.push(``);
+    steps.push(`⚠️ VERIFICAÇÕES ANTES DE EXECUTAR:`);
+    steps.push(`   • Liquidez mínima: $${(opp.market1_liquidity || 0).toFixed(0)} (${exchange1Name}) e $${(opp.market2_liquidity || 0).toFixed(0)} (${exchange2Name})`);
+    steps.push(`   • Confirme que os mercados são equivalentes (mesmo evento/pergunta)`);
+    steps.push(`   • Considere taxas de cada exchange (geralmente 2-5% por transação)`);
+    steps.push(`   • Verifique datas de expiração (devem ser compatíveis)`);
+    steps.push(``);
+    steps.push(`✅ CONFIABILIDADE:`);
+    steps.push(`   • Confiança no matching: ${((opp.confidence || 0) * 100).toFixed(0)}%`);
+    steps.push(`   • Score de qualidade: ${(opp.quality_score || 0).toFixed(0)}/100`);
+    
+    return steps;
+  };
+
+  // Normaliza oportunidades do sistema especialista v2.0
+  const normalizeOpportunity = (opp) => {
+    const market1 = opp.markets?.[0] || {};
+    const market2 = opp.markets?.[1] || {};
+    
+    return {
+      // Identificação
+      id: opp.id || `${Date.now()}-${Math.random()}`,
+      type: opp.type || 'unknown',
+      strategy: opp.strategy || 'unknown',
+      
+      // Métricas financeiras
+      profit_percent: (opp.profit_pct || 0) * 100,
+      profit_pct: opp.profit_pct || 0,
+      gross_profit_pct: opp.gross_profit_pct || 0,
+      total_investment: opp.total_investment || 0,
+      expected_return: opp.expected_return || 0,
+      spread_pct: (opp.spread_pct || 0) * 100,  // Spread de probabilidade
+      probability_low: opp.probability_low || market1.price || 0,
+      probability_high: opp.probability_high || market2.price || 0,
+      net_profit: opp.net_profit || 0,
+      
+      // Dados específicos de curto prazo
+      time_to_expiry_hours: opp.time_to_expiry_hours || 0,
+      volatility_score: opp.volatility_score || 0,
+      execution_speed: opp.execution_speed || 'médio',
+      risk_level: opp.risk_level || 'médio',
+      
+      // Scores
+      quality_score: opp.quality_score || 0,
+      risk_score: opp.risk_score || 0,
+      confidence: opp.confidence || 0,
+      liquidity_score: opp.liquidity_score || 0,
+      
+      // Mercados
+      exchange1: market1.exchange || 'N/A',
+      exchange2: market2.exchange || market1.exchange || 'N/A',
+      market1_question: market1.question || opp.explanation || 'N/A',
+      market2_question: market2.question || opp.explanation || 'N/A',
+      market1_price: market1.price || 0,
+      market2_price: market2.price || 0,
+      market1_liquidity: market1.liquidity || 0,
+      market2_liquidity: market2.liquidity || 0,
+      market1_outcome: market1.outcome || 'YES',
+      market2_outcome: market2.outcome || 'NO',
+      
+      // URLs dos mercados
+      market1_url: market1.url || null,
+      market2_url: market2.url || null,
+      
+      // Detalhes
+      explanation: opp.explanation || '',
+      execution_steps: opp.execution_steps || [],
+      warnings: opp.warnings || [],
+      
+      // Raw markets para referência
+      markets: opp.markets || []
+    };
+  };
+
+  // Busca dados do backend (OTIMIZADO + TRATAMENTO DE ERRO)
+  const fetchData = useCallback(async (showLoadingState = true) => {
+    if (showLoadingState) setLoading(true);
+    setError(null);
+
+    try {
+      // Busca apenas oportunidades (mais rápido)
+      const oppsResponse = await fetch('http://localhost:8000/opportunities', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!oppsResponse.ok) {
+        throw new Error(`Erro HTTP: ${oppsResponse.status}`);
+      }
+
+      const oppsData = await oppsResponse.json();
+
+      // Atualiza oportunidades (tratamento seguro + normalização)
+      const rawOpportunities = Array.isArray(oppsData.opportunities) 
+        ? oppsData.opportunities 
+        : (oppsData.opportunities ? [oppsData.opportunities] : []);
+      
+      // Normaliza todas as oportunidades
+      const opportunities = rawOpportunities.map(normalizeOpportunity);
+      
+      setOpportunities(opportunities);
+      setLastUpdate(oppsData.last_update ? new Date(oppsData.last_update) : new Date());
+      
+      // Cache local das oportunidades
+      try {
+        localStorage.setItem('cached_opportunities', JSON.stringify(opportunities));
+        localStorage.setItem('cached_timestamp', new Date().toISOString());
+      } catch (storageErr) {
+        console.warn('Erro ao salvar cache:', storageErr);
+      }
+      
+    } catch (err) {
+      const errorMsg = err?.message || 'Erro desconhecido ao buscar dados';
+      setError(errorMsg);
+      console.error('Erro detalhado:', err);
+      
+      // Tenta usar cache local em caso de erro
+      try {
+        const cached = localStorage.getItem('cached_opportunities');
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          setOpportunities(Array.isArray(parsed) ? parsed : []);
+        }
+      } catch (cacheErr) {
+        console.warn('Erro ao carregar cache:', cacheErr);
+        setOpportunities([]);
+      }
+    } finally {
+      if (showLoadingState) setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    // Carrega cache local primeiro (INSTANTÂNEO) - COM TRATAMENTO DE ERRO
+    try {
+      const cached = localStorage.getItem('cached_opportunities');
+      const cachedTimestamp = localStorage.getItem('cached_timestamp');
+      
+      if (cached && cachedTimestamp) {
+        const cacheAge = Date.now() - new Date(cachedTimestamp).getTime();
+        // Se cache tem menos de 5 minutos, usa ele
+        if (cacheAge < 5 * 60 * 1000) {
+          const parsed = JSON.parse(cached);
+          setOpportunities(Array.isArray(parsed) ? parsed : []);
+          setLastUpdate(new Date(cachedTimestamp));
+          setLoading(false);
+          console.log('✓ Cache local carregado instantaneamente');
+        }
+      }
+    } catch (err) {
+      console.warn('Erro ao carregar cache inicial:', err);
+      setOpportunities([]);
+    }
+    
+    // Depois busca dados atualizados do servidor
+    fetchData(true);
+    
+    // Atualiza silenciosamente a cada 20 segundos (sincronizado com backend)
+    const interval = setInterval(() => fetchData(false), 20000);
+    
+    // Atualiza indicador de tempo a cada segundo
+    const timeInterval = setInterval(() => setCurrentTime(new Date()), 1000);
+    
+    return () => {
+      clearInterval(interval);
+      clearInterval(timeInterval);
+    };
+  }, [fetchData]);
+
+  // Aplica tema ao documento
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('theme', theme);
+  }, [theme]);
+
+  // Toggle de tema
+  const toggleTheme = () => {
+    setTheme(prev => prev === 'dark' ? 'light' : 'dark');
+  };
+
+  // Filtra, deduplica e ordena oportunidades (MEMOIZADO para performance)
+  const filteredOpportunities = useMemo(() => {
+    if (!opportunities || opportunities.length === 0) return [];
+    
+    let filtered = [...opportunities];
+
+    // Filtro de tipo de arbitragem
+    if (filters.arbitrageType !== 'all') {
+      filtered = filtered.filter(opp => {
+        if (filters.arbitrageType === 'combinatorial') {
+          return opp.type === 'combinatorial';
+        } else if (filters.arbitrageType === 'traditional') {
+          return opp.type === 'traditional' || opp.type === 'classic';
+        } else if (filters.arbitrageType === 'probability') {
+          return opp.type === 'probability';
+        } else if (filters.arbitrageType === 'short_term') {
+          return opp.type === 'short_term';
+        }
+        return true;
+      });
+    }
+
+    // Filtro de lucro
+    filtered = filtered.filter(opp => {
+      const profit = (opp.profit_pct || opp.profit_percent || 0) * 100;
+      return profit >= filters.minProfit && profit <= filters.maxProfit;
+    });
+
+    // Filtro de busca
+    if (filters.search) {
+      const searchLower = filters.search.toLowerCase();
+      filtered = filtered.filter(opp => {
+        const q1 = (opp.buy?.question || opp.market1_question || '').toLowerCase();
+        const q2 = (opp.sell?.question || opp.market2_question || '').toLowerCase();
+        return q1.includes(searchLower) || q2.includes(searchLower);
+      });
+    }
+
+    // Filtro de exchange
+    if (filters.exchange !== 'all') {
+      filtered = filtered.filter(opp => {
+        const ex1 = opp.buy?.exchange || opp.exchange1 || '';
+        const ex2 = opp.sell?.exchange || opp.exchange2 || '';
+        return ex1 === filters.exchange || ex2 === filters.exchange;
+      });
+    }
+
+    // Ordenação por lucro primeiro (para deduplicação pegar o melhor)
+    filtered.sort((a, b) => {
+      const profitA = (a.profit_pct || a.profit_percent || 0) * 100;
+      const profitB = (b.profit_pct || b.profit_percent || 0) * 100;
+      return profitB - profitA;
+    });
+
+    // DEDUPLICAÇÃO: Mantém apenas a melhor oportunidade por tema
+    const seenThemes = new Map();
+    const deduplicated = [];
+    
+    for (const opp of filtered) {
+      const themeKey = getThemeKey(opp);
+      
+      if (!seenThemes.has(themeKey)) {
+        seenThemes.set(themeKey, true);
+        // Adiciona título extraído
+        opp.title = extractTitle(opp.market1_question);
+        deduplicated.push(opp);
+      }
+    }
+
+    // Ordenação final
+    deduplicated.sort((a, b) => {
+      switch (filters.sortBy) {
+        case 'profit':
+          const profitA = (a.profit_pct || a.profit_percent || 0) * 100;
+          const profitB = (b.profit_pct || b.profit_percent || 0) * 100;
+          return profitB - profitA;
+        case 'date':
+          return new Date(b.market1_expires_at || 0) - new Date(a.market1_expires_at || 0);
+        case 'liquidity':
+          const liqA = (a.market1_liquidity || 0) + (a.market2_liquidity || 0);
+          const liqB = (b.market1_liquidity || 0) + (b.market2_liquidity || 0);
+          return liqB - liqA;
+        default:
+          return 0;
+      }
+    });
+
+    return deduplicated;
+  }, [opportunities, filters]);
+
+  // Estatísticas (OTIMIZADO)
+  const stats = useMemo(() => {
+    if (!opportunities || opportunities.length === 0) {
+      return {
+        totalOpportunities: 0,
+        avgProfit: 0,
+        totalMarkets: 0,
+        bestProfit: 0
+      };
+    }
+
+    const profits = opportunities.map(opp => (opp.profit_pct || opp.profit_percent || 0) * 100);
+    
+    // Contar mercados únicos das oportunidades
+    const uniqueMarkets = new Set();
+    opportunities.forEach(opp => {
+      if (opp.market1?.id) uniqueMarkets.add(opp.market1.id);
+      if (opp.market2?.id) uniqueMarkets.add(opp.market2.id);
+    });
+    
+    return {
+      totalOpportunities: opportunities.length,
+      avgProfit: profits.reduce((sum, p) => sum + p, 0) / profits.length,
+      totalMarkets: uniqueMarkets.size,
+      bestProfit: Math.max(...profits, 0)
+    };
+  }, [opportunities]);
+
+  const handleLogout = () => {
+    localStorage.removeItem('user');
+    onLogout();
+  };
+
+  return (
+    <div className="dashboard-modern">
+      {/* Header */}
+      <header className="dashboard-header">
+        <div className="header-content">
+          <div className="header-left">
+            <TrendingUp size={32} className="logo-icon" />
+            <div>
+              <h1>Prediction Arbitrage</h1>
+              <p className="header-subtitle">Dashboard em tempo real</p>
+            </div>
+          </div>
+
+          <div className="header-right">
+            <button className="btn-theme-toggle" onClick={toggleTheme} title={`Alternar para tema ${theme === 'dark' ? 'claro' : 'escuro'}`}>
+              {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
+            </button>
+
+            <button className="btn-refresh" onClick={() => fetchData(true)} disabled={loading}>
+              <RefreshCw size={18} className={loading ? 'spinning' : ''} />
+              Atualizar
+            </button>
+
+            <div className="user-menu">
+              <User size={20} />
+              <span>{user?.name || 'Usuário'}</span>
+              <button onClick={handleLogout} className="btn-logout">
+                <LogOut size={18} />
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {lastUpdate && (
+          <div className="last-update">
+            <Clock size={14} />
+            <span>Última atualização: {lastUpdate.toLocaleTimeString('pt-BR')}</span>
+            <span className="update-indicator">
+              {(() => {
+                const secondsAgo = Math.floor((currentTime.getTime() - lastUpdate.getTime()) / 1000);
+                if (secondsAgo < 25) {
+                  return <span className="status-live">● AO VIVO</span>;
+                } else if (secondsAgo < 60) {
+                  return <span className="status-recent">Atualizado há {secondsAgo}s</span>;
+                } else if (secondsAgo < 120) {
+                  return <span className="status-recent">Atualizado há {Math.floor(secondsAgo / 60)}min</span>;
+                } else {
+                  return <span className="status-old">Atualizado há {Math.floor(secondsAgo / 60)}min</span>;
+                }
+              })()}
+            </span>
+          </div>
+        )}
+      </header>
+
+      {/* Stats Cards */}
+      <div className="stats-grid">
+        <div className="stat-card">
+          <div className="stat-icon opportunities">
+            <Activity />
+          </div>
+          <div className="stat-content">
+            <h3>{stats.totalOpportunities}</h3>
+            <p>Oportunidades Ativas</p>
+          </div>
+        </div>
+
+        <div className="stat-card">
+          <div className="stat-icon profit">
+            <TrendingUp />
+          </div>
+          <div className="stat-content">
+            <h3>{(stats.bestProfit || 0).toFixed(2)}%</h3>
+            <p>Melhor Oportunidade</p>
+          </div>
+        </div>
+
+        <div className="stat-card">
+          <div className="stat-icon average">
+            <BarChart3 />
+          </div>
+          <div className="stat-content">
+            <h3>{(stats.avgProfit || 0).toFixed(2)}%</h3>
+            <p>Lucro Médio</p>
+          </div>
+        </div>
+
+        <div className="stat-card">
+          <div className="stat-icon markets">
+            <DollarSign />
+          </div>
+          <div className="stat-content">
+            <h3>{stats.totalMarkets}</h3>
+            <p>Mercados Monitorados</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Filters */}
+      <div className="filters-section">
+        <button 
+          className="btn-toggle-filters"
+          onClick={() => setShowFilters(!showFilters)}
+        >
+          <Filter size={18} />
+          {showFilters ? 'Ocultar' : 'Mostrar'} Filtros
+        </button>
+
+        {showFilters && (
+          <div className="filters-panel">
+            <div className="filter-group">
+              <label>
+                <Search size={16} />
+                Buscar
+              </label>
+              <input
+                type="text"
+                placeholder="Buscar por mercado..."
+                value={filters.search}
+                onChange={(e) => setFilters({ ...filters, search: e.target.value })}
+              />
+            </div>
+
+            <div className="filter-group">
+              <label>Lucro Mínimo (%)</label>
+              <input
+                type="number"
+                value={filters.minProfit}
+                onChange={(e) => setFilters({ ...filters, minProfit: Number(e.target.value) })}
+                min="0"
+                max="100"
+              />
+            </div>
+
+            <div className="filter-group">
+              <label>Lucro Máximo (%)</label>
+              <input
+                type="number"
+                value={filters.maxProfit}
+                onChange={(e) => setFilters({ ...filters, maxProfit: Number(e.target.value) })}
+                min="0"
+                max="100"
+              />
+            </div>
+
+            <div className="filter-group">
+              <label>Tipo de Arbitragem</label>
+              <select 
+                value={filters.arbitrageType}
+                onChange={(e) => setFilters({ ...filters, arbitrageType: e.target.value })}
+              >
+                <option value="all">Todos os Tipos</option>
+                <option value="combinatorial">🧮 Combinatória (mesma exchange)</option>
+                <option value="probability">📊 Por Probabilidade (entre exchanges)</option>
+                <option value="short_term">⚡ Curto Prazo (trades rápidos/diários)</option>
+                <option value="traditional">🔄 Tradicional (clássica)</option>
+              </select>
+            </div>
+
+            <div className="filter-group">
+              <label>Exchange</label>
+              <select 
+                value={filters.exchange}
+                onChange={(e) => setFilters({ ...filters, exchange: e.target.value })}
+              >
+                <option value="all">Todas</option>
+                <option value="kalshi">Kalshi</option>
+                <option value="polymarket">Polymarket</option>
+                <option value="predictit">PredictIt</option>
+                <option value="manifold">Manifold</option>
+              </select>
+            </div>
+
+            <div className="filter-group">
+              <label>Ordenar por</label>
+              <select 
+                value={filters.sortBy}
+                onChange={(e) => setFilters({ ...filters, sortBy: e.target.value })}
+              >
+                <option value="profit">Maior Lucro</option>
+                <option value="date">Data de Expiração</option>
+                <option value="liquidity">Maior Liquidez</option>
+              </select>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Content */}
+      <div className="dashboard-content">
+        {error && (
+          <div className="alert alert-error">
+            <AlertCircle size={20} />
+            <span>{error}</span>
+          </div>
+        )}
+
+        {loading && opportunities.length === 0 ? (
+          <div className="loading-state">
+            <RefreshCw size={48} className="spinning" />
+            <p>Carregando oportunidades...</p>
+          </div>
+        ) : filteredOpportunities.length === 0 ? (
+          <div className="empty-state">
+            <TrendingDown size={64} />
+            <h3>Nenhuma oportunidade encontrada</h3>
+            <p>Ajuste os filtros ou aguarde novos dados</p>
+          </div>
+        ) : (
+          <div className="opportunities-grid">
+            {filteredOpportunities.map((opp, index) => (
+              <div key={opp.id || index} className={`opportunity-card ${opp.type}`}>
+                {/* Título da oportunidade */}
+                <div className="opportunity-title">
+                  <h3>{opp.title || extractTitle(opp.market1_question)}</h3>
+                </div>
+
+                {/* Header com lucro e tipo */}
+                <div className="opportunity-header">
+                  <div className="profit-badge">
+                    <TrendingUp size={16} />
+                    +{(opp.profit_percent || 0).toFixed(2)}%
+                  </div>
+                  <div className="type-badge" title={opp.strategy}>
+                    {opp.type === 'combinatorial' ? '🧮' : opp.type === 'probability' ? '📊' : opp.type === 'short_term' ? '⚡' : opp.type === 'traditional' ? '🔄' : '⚖️'}
+                    {opp.type === 'combinatorial' ? 'Combinatória' : opp.type === 'probability' ? 'Por Probabilidade' : opp.type === 'short_term' ? 'Curto Prazo' : opp.type === 'traditional' ? 'Tradicional' : opp.strategy?.replace('_', ' ')}
+                  </div>
+                </div>
+
+                {/* Scores */}
+                <div className="scores-row">
+                  <div className="score" title="Qualidade geral">
+                    <span className="score-label">Score</span>
+                    <span className={`score-value ${opp.quality_score > 50 ? 'high' : opp.quality_score > 25 ? 'medium' : 'low'}`}>
+                      {(opp.quality_score || 0).toFixed(0)}
+                    </span>
+                  </div>
+                  <div className="score" title="Confiança">
+                    <span className="score-label">Conf.</span>
+                    <span className="score-value">{((opp.confidence || 0) * 100).toFixed(0)}%</span>
+                  </div>
+                  <div className="score" title="Risco (menor = melhor)">
+                    <span className="score-label">Risco</span>
+                    <span className={`score-value ${opp.risk_score < 0.3 ? 'low' : opp.risk_score < 0.6 ? 'medium' : 'high'}`}>
+                      {((opp.risk_score || 0) * 100).toFixed(0)}%
+                    </span>
+                  </div>
+                </div>
+
+                {/* Exchanges */}
+                <div className="exchanges-row">
+                  <span className={`exchange-badge ${opp.exchange1 || 'unknown'}`}>
+                    {opp.exchange1 || 'N/A'}
+                  </span>
+                  {opp.exchange1 !== opp.exchange2 && (
+                    <>
+                      <span className="arrow">→</span>
+                      <span className={`exchange-badge ${opp.exchange2 || 'unknown'}`}>
+                        {opp.exchange2 || 'N/A'}
+                      </span>
+                    </>
+                  )}
+                </div>
+
+                {/* Explicação */}
+                <div className="opportunity-body">
+                  <p className="explanation">
+                    {opp.explanation || 'Oportunidade de arbitragem detectada'}
+                  </p>
+
+                  {/* Detalhes financeiros */}
+                  <div className="opportunity-details">
+                    {opp.type === 'short_term' ? (
+                      <>
+                        <div className="detail-row">
+                          <span className="label">⏱️ Tempo até Expiração:</span>
+                          <span className="value">{opp.time_to_expiry_hours ? `${opp.time_to_expiry_hours.toFixed(1)}h` : 'N/A'}</span>
+                        </div>
+                        <div className="detail-row">
+                          <span className="label">🚀 Velocidade de Execução:</span>
+                          <span className={`value ${opp.execution_speed === 'rápido' ? 'buy' : opp.execution_speed === 'médio' ? 'medium' : 'sell'}`}>
+                            {opp.execution_speed || 'médio'}
+                          </span>
+                        </div>
+                        <div className="detail-row">
+                          <span className="label">⚠️ Nível de Risco:</span>
+                          <span className={`value ${opp.risk_level === 'baixo' ? 'buy' : opp.risk_level === 'médio' ? 'medium' : 'sell'}`}>
+                            {opp.risk_level || 'médio'}
+                          </span>
+                        </div>
+                        <div className="detail-row">
+                          <span className="label">Spread de Probabilidade:</span>
+                          <span className="value buy">{(opp.spread_pct || 0).toFixed(2)}%</span>
+                        </div>
+                        <div className="detail-row">
+                          <span className="label">Probabilidade Baixa:</span>
+                          <span className="value">{(opp.probability_low || 0) * 100}%</span>
+                        </div>
+                        <div className="detail-row">
+                          <span className="label">Probabilidade Alta:</span>
+                          <span className="value">{(opp.probability_high || 0) * 100}%</span>
+                        </div>
+                        <div className="detail-row">
+                          <span className="label">Lucro Líquido ($100):</span>
+                          <span className="value buy">${(opp.net_profit || 0).toFixed(2)}</span>
+                        </div>
+                        <div className="detail-row">
+                          <span className="label">Score de Volatilidade:</span>
+                          <span className="value">{(opp.volatility_score || 0).toFixed(2)}</span>
+                        </div>
+                      </>
+                    ) : opp.type === 'probability' && opp.spread_pct ? (
+                      <>
+                        <div className="detail-row">
+                          <span className="label">Spread de Probabilidade:</span>
+                          <span className="value buy">{(opp.spread_pct || 0).toFixed(2)}%</span>
+                        </div>
+                        <div className="detail-row">
+                          <span className="label">Probabilidade Baixa:</span>
+                          <span className="value">{(opp.probability_low || 0) * 100}%</span>
+                        </div>
+                        <div className="detail-row">
+                          <span className="label">Probabilidade Alta:</span>
+                          <span className="value buy">{(opp.probability_high || 0) * 100}%</span>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="detail-row">
+                          <span className="label">Investimento:</span>
+                          <span className="value">${(opp.total_investment || 0).toFixed(3)}</span>
+                        </div>
+                        <div className="detail-row">
+                          <span className="label">Retorno:</span>
+                          <span className="value buy">${(opp.expected_return || 0).toFixed(3)}</span>
+                        </div>
+                        <div className="detail-row">
+                          <span className="label">Liquidez:</span>
+                          <span className={`value ${opp.liquidity_score > 0.5 ? 'high' : 'low'}`}>
+                            {opp.liquidity_score > 0.8 ? '🟢 Alta' : opp.liquidity_score > 0.4 ? '🟡 Média' : '🔴 Baixa'}
+                          </span>
+                        </div>
+                      </>
+                    )}
+                  </div>
+
+                  {/* Warnings */}
+                  {opp.warnings && opp.warnings.length > 0 && (
+                    <div className="warnings">
+                      {opp.warnings.slice(0, 2).map((warning, i) => (
+                        <span key={i} className="warning-tag">{warning}</span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Links para os mercados */}
+                <div className="market-links">
+                  {opp.market1_url && (
+                    <a 
+                      href={opp.market1_url} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className={`market-link ${opp.exchange1}`}
+                      title={`${opp.market1_question} (${opp.market1_outcome})`}
+                    >
+                      <ExternalLink size={14} />
+                      <span className="link-exchange">{opp.exchange1}</span>
+                      <span className="link-outcome">{opp.market1_outcome}</span>
+                      <span className="link-price">${(opp.market1_price || 0).toFixed(2)}</span>
+                    </a>
+                  )}
+                  {opp.market2_url && opp.market2_url !== opp.market1_url && (
+                    <a 
+                      href={opp.market2_url} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className={`market-link ${opp.exchange2}`}
+                      title={`${opp.market2_question} (${opp.market2_outcome})`}
+                    >
+                      <ExternalLink size={14} />
+                      <span className="link-exchange">{opp.exchange2}</span>
+                      <span className="link-outcome">{opp.market2_outcome}</span>
+                      <span className="link-price">${(opp.market2_price || 0).toFixed(2)}</span>
+                    </a>
+                  )}
+                </div>
+
+                {/* Footer com passos */}
+                <div className="opportunity-footer">
+                  <details className="execution-steps">
+                    <summary>
+                      📋 Ver passos de execução
+                      {opp.execution_steps && opp.execution_steps.length > 0 
+                        ? ` (${opp.execution_steps.length})` 
+                        : ` (${generateExecutionSteps(opp).length})`}
+                    </summary>
+                    <ol>
+                      {(opp.execution_steps && opp.execution_steps.length > 0 
+                        ? opp.execution_steps 
+                        : generateExecutionSteps(opp)
+                      ).map((step, i) => {
+                        const isWarning = step.includes('⚠️');
+                        const isSuccess = step.includes('✅');
+                        const isSection = step.includes('📊') || step.includes('🧮') || step.includes('🔄');
+                        const isStep = step.includes('1️⃣') || step.includes('2️⃣') || step.includes('3️⃣');
+                        const isEmpty = step.trim() === '';
+                        const stepNumber = isStep ? step.match(/[1-3]️⃣/)?.[0]?.replace('️⃣', '') : null;
+                        
+                        return (
+                          <li 
+                            key={i}
+                            data-type={
+                              isEmpty ? undefined :
+                              isWarning ? 'warning' : 
+                              isSuccess ? 'success' : 
+                              isSection ? 'section' :
+                              isStep ? 'step' : undefined
+                            }
+                            data-step-number={stepNumber || undefined}
+                          >
+                            {step}
+                          </li>
+                        );
+                      })}
+                    </ol>
+                  </details>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default DashboardModern;
+

@@ -1,0 +1,75 @@
+/* Sistema de Temas - Variáveis CSS */
+
+:root {
+  /* Tema Escuro (padrão) */
+  --bg-primary: #0f172a;
+  --bg-secondary: #1e293b;
+  --bg-tertiary: rgba(255, 255, 255, 0.08);
+  --bg-card: rgba(30, 41, 59, 0.95);
+  --bg-card-hover: rgba(51, 65, 85, 1);
+  --bg-filter: rgba(15, 23, 42, 0.9);
+  
+  --text-primary: #ffffff;
+  --text-secondary: #e2e8f0;
+  --text-tertiary: #cbd5e1;
+  --text-muted: #94a3b8;
+  
+  --border-color: rgba(255, 255, 255, 0.15);
+  --border-color-hover: rgba(255, 255, 255, 0.25);
+  
+  --accent-primary: #60a5fa;
+  --accent-secondary: #a78bfa;
+  --accent-hover: #3b82f6;
+  
+  --success: #34d399;
+  --warning: #fbbf24;
+  --error: #f87171;
+  --info: #60a5fa;
+  
+  --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.5);
+  --shadow-xl: 0 20px 25px rgba(0, 0, 0, 0.6);
+  
+  --backdrop-blur: blur(10px);
+}
+
+[data-theme="light"] {
+  /* Tema Claro */
+  --bg-primary: #ffffff;
+  --bg-secondary: #f1f5f9;
+  --bg-tertiary: rgba(0, 0, 0, 0.05);
+  --bg-card: #ffffff;
+  --bg-card-hover: #f8fafc;
+  --bg-filter: rgba(255, 255, 255, 0.98);
+  
+  --text-primary: #0f172a;
+  --text-secondary: #1e293b;
+  --text-tertiary: #334155;
+  --text-muted: #475569;
+  
+  --border-color: rgba(0, 0, 0, 0.15);
+  --border-color-hover: rgba(0, 0, 0, 0.25);
+  
+  --accent-primary: #2563eb;
+  --accent-secondary: #7c3aed;
+  --accent-hover: #1d4ed8;
+  
+  --success: #059669;
+  --warning: #d97706;
+  --error: #dc2626;
+  --info: #2563eb;
+  
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.08);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.12);
+  --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.18);
+  --shadow-xl: 0 20px 25px rgba(0, 0, 0, 0.25);
+  
+  --backdrop-blur: blur(10px);
+}
+
+/* Transição suave entre temas */
+* {
+  transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+}
+
