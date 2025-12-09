@@ -252,8 +252,9 @@ const DashboardModern = ({ user, onLogout }) => {
     try {
       // Busca apenas oportunidades (mais rápido)
       // Detecta se está em produção (GitHub Pages) ou desenvolvimento
+      // IMPORTANTE: Após fazer deploy do backend, atualize a URL abaixo!
       const API_URL = process.env.NODE_ENV === 'production' 
-        ? 'https://your-backend-url.herokuapp.com' // Substitua pela URL do seu backend em produção
+        ? 'https://prediction-arbitrage-api.onrender.com' // ⚠️ ATUALIZE COM A URL DO SEU BACKEND
         : 'http://localhost:8000';
       
       const oppsResponse = await fetch(`${API_URL}/opportunities`, {
