@@ -508,6 +508,12 @@ const DashboardModern = ({ user, onLogout }) => {
       market2_expires_at: market2.expires_at || opp.market2_expires_at || null,
       expires_at: market1.expires_at || market2.expires_at || opp.expires_at || null,
       
+      // Dados completos dos mercados para extração de opções específicas
+      // Usa full_data se disponível, senão usa o objeto market diretamente
+      // Para oportunidades combinatoriais, garante que option_specific está disponível
+      market1_data: market1.full_data || (market1.option_specific ? { ...market1, option_specific: market1.option_specific } : market1),
+      market2_data: market2.full_data || (market2.option_specific ? { ...market2, option_specific: market2.option_specific } : market2),
+      
       // Detalhes
       explanation: opp.explanation || '',
       execution_steps: opp.execution_steps || [],

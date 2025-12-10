@@ -139,7 +139,10 @@ def serialize_combinatorial_opportunity(opp) -> Dict:
                 "url": m.url,
                 "liquidity": m.liquidity,
                 "expires_at": m.expires_at.isoformat() if m.expires_at else None,
-                "market_id": m.market_id
+                "market_id": m.market_id,
+                # Inclui option_specific e full_data para extração de opções específicas
+                "option_specific": serialize_market(m).get("option_specific"),
+                "full_data": serialize_market(m).get("full_data")
             }
             for m in opp.markets
         ]
