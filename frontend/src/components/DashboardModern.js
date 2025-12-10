@@ -247,23 +247,41 @@ const DashboardModern = ({ user, onLogout }) => {
         };
       }
       
-      // Fallback: se não conseguiu extrair, verifica se a question indica múltiplas opções
-      // Perguntas como "Who will..." geralmente têm múltiplas opções
-      const hasMultipleOptionsQuestion = /^(who|which|what)\s+will/i.test(question) && 
-                                        !question.includes(' - '); // Se não tem subtitle, pode ter múltiplas opções
+      // Se ainda não encontrou, tenta extrair qualquer identificador do market_id
+      if (!optionName && actualMarketData && actualMarketData.market_id) {
+        const marketIdParts = actualMarketData.market_id.split('_');
+        if (marketIdParts.length >= 2) {
+          const tickerPart = marketIdParts[0];
+          const tickerParts = tickerPart.split('-');
+          
+          // Pega a última parte do ticker como opção (mesmo que seja um código)
+          if (tickerParts.length >= 2) {
+            optionName = tickerParts[tickerParts.length - 1];
+            // Se parece ser um código (tudo maiúsculo, sem espaços), usa como está
+            if (optionName === optionName.toUpperCase() && optionName.length >= 2) {
+              // Mantém como código (ex: "YLEV", "PPIZ")
+            } else {
+              // Tenta capitalizar
+              optionName = optionName.charAt(0).toUpperCase() + optionName.slice(1).toLowerCase();
+            }
+          }
+        }
+      }
       
-      if (hasMultipleOptionsQuestion) {
-        // Avisa que há múltiplas opções mas não conseguiu identificar qual
+      // Se encontrou qualquer opção (mesmo que seja um código), mostra ela
+      if (optionName && optionName.length > 0 && optionName !== "::") {
+        const displayText = `${optionName} (${outcome})`;
+        
         return {
-          contractName: null,
-          baseQuestion: question,
-          option: outcome,
-          hasMultipleOptions: true,  // Indica que há múltiplas opções
-          displayOption: `${outcome} (Múltiplas opções disponíveis - verificar link)`  // Avisa que precisa verificar
+          contractName: optionName,
+          baseQuestion: baseQuestion || question,
+          option: optionName,
+          hasMultipleOptions: true,
+          displayOption: displayText
         };
       }
       
-      // Fallback final: mostra apenas YES/NO
+      // Fallback final: mostra apenas YES/NO (nunca mostra "Múltiplas opções")
       return {
         contractName: null,
         baseQuestion: question,
