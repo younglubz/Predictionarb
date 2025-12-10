@@ -113,9 +113,15 @@ const DashboardModern = ({ user, onLogout }) => {
 
   // Função para extrair informações detalhadas do mercado
   const getMarketDetails = (question, exchange, outcome, marketData = null) => {
-    // Se marketData é um objeto Market completo, extrai market_id
-    if (marketData && typeof marketData === 'object' && marketData.market_id) {
-      marketData = { market_id: marketData.market_id };
+    // Se marketData é um objeto Market completo, usa diretamente
+    // Se tem full_data, usa full_data
+    let actualMarketData = null;
+    if (marketData) {
+      if (marketData.full_data) {
+        actualMarketData = marketData.full_data;
+      } else if (marketData.market_id) {
+        actualMarketData = marketData;
+      }
     }
     const exchangeLower = (exchange || '').toLowerCase();
     
@@ -172,10 +178,10 @@ const DashboardModern = ({ user, onLogout }) => {
         // Tem subtitle na question
         optionName = parts[parts.length - 1].trim(); // Ex: "Above 8%", "Above 9%"
         baseQuestion = parts.slice(0, -1).join(' - '); // Ex: "How high will unemployment get?"
-      } else if (marketData && marketData.market_id) {
+      } else if (actualMarketData && actualMarketData.market_id) {
         // Tenta extrair do market_id (formato: TICKER-OPTION_YES/NO)
         // Ex: "KXNEWPOPE-70-PPIZ_YES" -> opção é "PPIZ"
-        const marketIdParts = marketData.market_id.split('_');
+        const marketIdParts = actualMarketData.market_id.split('_');
         if (marketIdParts.length >= 2) {
           const tickerPart = marketIdParts[0]; // "KXNEWPOPE-70-PPIZ"
           const tickerParts = tickerPart.split('-');
@@ -260,8 +266,8 @@ const DashboardModern = ({ user, onLogout }) => {
     
     if (opp.type === 'probability') {
       // Arbitragem por probabilidade (entre exchanges) - RESUMIDO
-      const details1 = getMarketDetails(opp.market1_question, opp.exchange1, opp.market1_outcome);
-      const details2 = getMarketDetails(opp.market2_question, opp.exchange2, opp.market2_outcome);
+      const details1 = getMarketDetails(opp.market1_question, opp.exchange1, opp.market1_outcome, opp.market1_data);
+      const details2 = getMarketDetails(opp.market2_question, opp.exchange2, opp.market2_outcome, opp.market2_data);
       
       steps.push(`📊 ESTRATÉGIA: Arbitragem por Spread de Probabilidade`);
       steps.push(`   Spread: ${(opp.spread_pct || 0).toFixed(2)}% | Lucro: ${(opp.profit_percent || 0).toFixed(2)}%`);
@@ -285,8 +291,8 @@ const DashboardModern = ({ user, onLogout }) => {
       steps.push(`3️⃣ Aguardar resolução para lucro garantido de ${(opp.profit_percent || 0).toFixed(2)}%`);
     } else if (opp.type === 'short_term') {
       // Arbitragem de curto prazo (trades rápidos/diários) - RESUMIDO
-      const details1 = getMarketDetails(opp.market1_question, opp.exchange1, opp.market1_outcome);
-      const details2 = getMarketDetails(opp.market2_question, opp.exchange2, opp.market2_outcome);
+      const details1 = getMarketDetails(opp.market1_question, opp.exchange1, opp.market1_outcome, opp.market1_data);
+      const details2 = getMarketDetails(opp.market2_question, opp.exchange2, opp.market2_outcome, opp.market2_data);
       
       steps.push(`⚡ ESTRATÉGIA: Arbitragem de Curto Prazo`);
       steps.push(`   ⏱️ Expira em ${(opp.time_to_expiry_hours || 0).toFixed(1)}h | Risco: ${opp.risk_level || 'médio'} | Lucro: ${(opp.profit_percent || 0).toFixed(2)}%`);
@@ -312,8 +318,8 @@ const DashboardModern = ({ user, onLogout }) => {
       steps.push(`3️⃣ Fechar posição antes da expiração ou aguardar resolução`);
     } else if (opp.type === 'combinatorial') {
       // Arbitragem combinatória (mesma exchange) - RESUMIDO
-      const details1 = getMarketDetails(opp.market1_question, opp.exchange1, opp.market1_outcome);
-      const details2 = getMarketDetails(opp.market2_question, opp.exchange2 || opp.exchange1, opp.market2_outcome);
+      const details1 = getMarketDetails(opp.market1_question, opp.exchange1, opp.market1_outcome, opp.market1_data);
+      const details2 = getMarketDetails(opp.market2_question, opp.exchange2 || opp.exchange1, opp.market2_outcome, opp.market2_data);
       
       steps.push(`🧮 ESTRATÉGIA: Arbitragem Combinatória`);
       steps.push(`   Tipo: ${opp.strategy === 'complementary_buy' ? 'Comprar ambos' : 'Vender ambos'} | Lucro: ${(opp.profit_percent || 0).toFixed(2)}%`);
@@ -347,8 +353,8 @@ const DashboardModern = ({ user, onLogout }) => {
       }
     } else {
       // Arbitragem tradicional (entre exchanges) - RESUMIDO
-      const details1 = getMarketDetails(opp.market1_question, opp.exchange1, opp.market1_outcome);
-      const details2 = getMarketDetails(opp.market2_question, opp.exchange2, opp.market2_outcome);
+      const details1 = getMarketDetails(opp.market1_question, opp.exchange1, opp.market1_outcome, opp.market1_data);
+      const details2 = getMarketDetails(opp.market2_question, opp.exchange2, opp.market2_outcome, opp.market2_data);
       
       steps.push(`🔄 ESTRATÉGIA: Arbitragem Tradicional`);
       steps.push(`   Diferença entre ${exchange1Name} e ${exchange2Name} | Lucro: ${(opp.profit_percent || 0).toFixed(2)}%`);

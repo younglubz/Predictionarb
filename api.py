@@ -275,7 +275,19 @@ def serialize_market(market: Market) -> Dict:
         "volume_24h": market.volume_24h,
         "liquidity": market.liquidity,
         "expires_at": market.expires_at.isoformat() if market.expires_at else None,
-        "url": market.url
+        "url": market.url,
+        # Inclui dados completos para permitir extração de opções específicas no frontend
+        "full_data": {
+            "exchange": market.exchange,
+            "market_id": market.market_id,
+            "question": market.question,
+            "outcome": market.outcome,
+            "price": market.price,
+            "volume_24h": market.volume_24h,
+            "liquidity": market.liquidity,
+            "expires_at": market.expires_at.isoformat() if market.expires_at else None,
+            "url": market.url
+        }
     }
 
 
