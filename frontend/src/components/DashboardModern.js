@@ -255,6 +255,11 @@ const DashboardModern = ({ user, onLogout }) => {
       market1_url: market1.url || null,
       market2_url: market2.url || null,
       
+      // Datas de expiração
+      market1_expires_at: market1.expires_at || opp.market1_expires_at || null,
+      market2_expires_at: market2.expires_at || opp.market2_expires_at || null,
+      expires_at: market1.expires_at || market2.expires_at || opp.expires_at || null,
+      
       // Detalhes
       explanation: opp.explanation || '',
       execution_steps: opp.execution_steps || [],
@@ -464,6 +469,27 @@ const DashboardModern = ({ user, onLogout }) => {
       }
     }
 
+    // Função auxiliar para calcular tempo até expiração (em horas)
+    const getTimeToExpiry = (opp) => {
+      // Para short_term, usa time_to_expiry_hours diretamente
+      if (opp.type === 'short_term' && opp.time_to_expiry_hours) {
+        return opp.time_to_expiry_hours;
+      }
+      
+      // Para outras oportunidades, calcula a partir de expires_at
+      const expiresAt = opp.market1_expires_at || opp.expires_at;
+      if (expiresAt) {
+        const expiryDate = new Date(expiresAt);
+        const now = new Date();
+        const diffMs = expiryDate - now;
+        const diffHours = diffMs / (1000 * 60 * 60);
+        return diffHours > 0 ? diffHours : Infinity; // Retorna Infinity se já expirou
+      }
+      
+      // Se não tem data de expiração, retorna Infinity (vai para o final)
+      return Infinity;
+    };
+
     // Ordenação final
     deduplicated.sort((a, b) => {
       switch (filters.sortBy) {
@@ -473,6 +499,14 @@ const DashboardModern = ({ user, onLogout }) => {
           return profitB - profitA;
         case 'date':
           return new Date(b.market1_expires_at || 0) - new Date(a.market1_expires_at || 0);
+        case 'expiry':
+          // Ordena do mais próximo ao mais longe (menor tempo primeiro)
+          const timeA = getTimeToExpiry(a);
+          const timeB = getTimeToExpiry(b);
+          if (timeA === Infinity && timeB === Infinity) return 0;
+          if (timeA === Infinity) return 1; // Sem data vai para o final
+          if (timeB === Infinity) return -1; // Sem data vai para o final
+          return timeA - timeB; // Menor tempo primeiro (mais próximo)
         case 'liquidity':
           const liqA = (a.market1_liquidity || 0) + (a.market2_liquidity || 0);
           const liqB = (b.market1_liquidity || 0) + (b.market2_liquidity || 0);
@@ -707,6 +741,7 @@ const DashboardModern = ({ user, onLogout }) => {
                 onChange={(e) => setFilters({ ...filters, sortBy: e.target.value })}
               >
                 <option value="profit">Maior Lucro</option>
+                <option value="expiry">⏱️ Tempo até Expiração (mais próximo primeiro)</option>
                 <option value="date">Data de Expiração</option>
                 <option value="liquidity">Maior Liquidez</option>
               </select>
