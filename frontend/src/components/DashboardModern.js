@@ -71,6 +71,52 @@ const DashboardModern = ({ user, onLogout }) => {
       .trim();
   };
 
+  // Função para extrair informações detalhadas do mercado
+  const getMarketDetails = (question, exchange, outcome) => {
+    const exchangeLower = (exchange || '').toLowerCase();
+    
+    // Para PredictIt: extrai o nome do contrato específico
+    if (exchangeLower.includes('predictit')) {
+      // Formato: "Question - ContractName"
+      const parts = question.split(' - ');
+      if (parts.length >= 2) {
+        const contractName = parts[parts.length - 1].trim();
+        // Remove "YES" ou "NO" do final se existir
+        const cleanContract = contractName.replace(/\s+(YES|NO)$/i, '').trim();
+        return {
+          contractName: cleanContract || contractName,
+          baseQuestion: parts.slice(0, -1).join(' - '),
+          option: cleanContract || contractName, // Mostra o nome do contrato como opção
+          hasMultipleOptions: true
+        };
+      }
+      return {
+        contractName: null,
+        baseQuestion: question,
+        option: outcome,
+        hasMultipleOptions: false
+      };
+    }
+    
+    // Para Manifold: apenas YES/NO
+    if (exchangeLower.includes('manifold')) {
+      return {
+        contractName: null,
+        baseQuestion: question,
+        option: outcome === 'YES' ? 'YES' : 'NO',
+        hasMultipleOptions: false
+      };
+    }
+    
+    // Para outras exchanges: usa outcome padrão
+    return {
+      contractName: null,
+      baseQuestion: question,
+      option: outcome,
+      hasMultipleOptions: false
+    };
+  };
+
 
   // Função para gerar passos de execução resumidos
   const generateExecutionSteps = (opp) => {
@@ -730,33 +776,17 @@ const DashboardModern = ({ user, onLogout }) => {
                   </div>
                 </div>
 
-                {/* Exchanges com opções e preços */}
+                {/* Exchanges */}
                 <div className="exchanges-row">
-                  <div className="exchange-info">
-                    <span className={`exchange-badge ${opp.exchange1 || 'unknown'}`}>
-                      {opp.exchange1 || 'N/A'}
-                    </span>
-                    <span className="outcome-badge buy">
-                      {opp.market1_outcome === 'YES' ? 'YES' : 'NO'}
-                    </span>
-                    <span className="price-badge">
-                      ${(opp.market1_price || 0).toFixed(2)}
-                    </span>
-                  </div>
+                  <span className={`exchange-badge ${opp.exchange1 || 'unknown'}`}>
+                    {opp.exchange1 || 'N/A'}
+                  </span>
                   {opp.exchange1 !== opp.exchange2 && (
                     <>
                       <span className="arrow">→</span>
-                      <div className="exchange-info">
-                        <span className={`exchange-badge ${opp.exchange2 || 'unknown'}`}>
-                          {opp.exchange2 || 'N/A'}
-                        </span>
-                        <span className="outcome-badge sell">
-                          {opp.market2_outcome === 'YES' ? 'YES' : 'NO'}
-                        </span>
-                        <span className="price-badge">
-                          ${(opp.market2_price || 0).toFixed(2)}
-                        </span>
-                      </div>
+                      <span className={`exchange-badge ${opp.exchange2 || 'unknown'}`}>
+                        {opp.exchange2 || 'N/A'}
+                      </span>
                     </>
                   )}
                 </div>
@@ -853,36 +883,66 @@ const DashboardModern = ({ user, onLogout }) => {
                   )}
                 </div>
 
-                {/* Links para os mercados */}
+                {/* Links para os mercados com informações detalhadas */}
                 <div className="market-links">
-                  {opp.market1_url && (
-                    <a 
-                      href={opp.market1_url} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className={`market-link ${opp.exchange1}`}
-                      title={`${opp.market1_question} (${opp.market1_outcome})`}
-                    >
-                      <ExternalLink size={14} />
-                      <span className="link-exchange">{opp.exchange1}</span>
-                      <span className="link-outcome">{opp.market1_outcome}</span>
-                      <span className="link-price">${(opp.market1_price || 0).toFixed(2)}</span>
-                    </a>
-                  )}
-                  {opp.market2_url && opp.market2_url !== opp.market1_url && (
-                    <a 
-                      href={opp.market2_url} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className={`market-link ${opp.exchange2}`}
-                      title={`${opp.market2_question} (${opp.market2_outcome})`}
-                    >
-                      <ExternalLink size={14} />
-                      <span className="link-exchange">{opp.exchange2}</span>
-                      <span className="link-outcome">{opp.market2_outcome}</span>
-                      <span className="link-price">${(opp.market2_price || 0).toFixed(2)}</span>
-                    </a>
-                  )}
+                  {opp.market1_url && (() => {
+                    const details1 = getMarketDetails(opp.market1_question, opp.exchange1, opp.market1_outcome);
+                    return (
+                      <a 
+                        href={opp.market1_url} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className={`market-link ${opp.exchange1}`}
+                        title={`${details1.baseQuestion} - ${details1.option}`}
+                      >
+                        <ExternalLink size={14} />
+                        <div className="link-content">
+                          <div className="link-header">
+                            <span className="link-exchange">{opp.exchange1}</span>
+                            <span className="link-action">COMPRAR</span>
+                          </div>
+                          <div className="link-details">
+                            <span className="link-option">{details1.option}</span>
+                            <span className="link-price">${(opp.market1_price || 0).toFixed(2)}</span>
+                          </div>
+                          {details1.hasMultipleOptions && (
+                            <div className="link-note">
+                              📋 Contrato específico: {details1.contractName}
+                            </div>
+                          )}
+                        </div>
+                      </a>
+                    );
+                  })()}
+                  {opp.market2_url && opp.market2_url !== opp.market1_url && (() => {
+                    const details2 = getMarketDetails(opp.market2_question, opp.exchange2, opp.market2_outcome);
+                    return (
+                      <a 
+                        href={opp.market2_url} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className={`market-link ${opp.exchange2}`}
+                        title={`${details2.baseQuestion} - ${details2.option}`}
+                      >
+                        <ExternalLink size={14} />
+                        <div className="link-content">
+                          <div className="link-header">
+                            <span className="link-exchange">{opp.exchange2}</span>
+                            <span className="link-action">VENDER</span>
+                          </div>
+                          <div className="link-details">
+                            <span className="link-option">{details2.option}</span>
+                            <span className="link-price">${(opp.market2_price || 0).toFixed(2)}</span>
+                          </div>
+                          {details2.hasMultipleOptions && (
+                            <div className="link-note">
+                              📋 Contrato específico: {details2.contractName}
+                            </div>
+                          )}
+                        </div>
+                      </a>
+                    );
+                  })()}
                 </div>
 
                 {/* Footer com passos */}
