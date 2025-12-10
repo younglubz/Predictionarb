@@ -113,6 +113,10 @@ const DashboardModern = ({ user, onLogout }) => {
 
   // Função para extrair informações detalhadas do mercado
   const getMarketDetails = (question, exchange, outcome, marketData = null) => {
+    // Se marketData é um objeto Market completo, extrai market_id
+    if (marketData && typeof marketData === 'object' && marketData.market_id) {
+      marketData = { market_id: marketData.market_id };
+    }
     const exchangeLower = (exchange || '').toLowerCase();
     
     // Para PredictIt: extrai o nome do contrato específico
@@ -156,19 +160,37 @@ const DashboardModern = ({ user, onLogout }) => {
       };
     }
     
-    // Para Kalshi: extrai opção específica do subtitle
+    // Para Kalshi: extrai opção específica do subtitle ou market_id
     if (exchangeLower.includes('kalshi')) {
-      // Kalshi usa formato: "Question - Option Name" (ex: "How high will unemployment get? - Above 8%")
-      // O subtitle contém a opção específica
+      // Kalshi pode ter formato: "Question - Option Name" (ex: "How high will unemployment get? - Above 8%")
+      // Ou pode ter a opção no market_id (ex: "KXNEWPOPE-70-PPIZ" onde PPIZ é a opção)
       const parts = question.split(' - ');
+      let optionName = null;
+      let baseQuestion = question;
+      
       if (parts.length >= 2) {
-        const optionName = parts[parts.length - 1].trim(); // Ex: "Above 8%", "Above 9%"
-        const baseQuestion = parts.slice(0, -1).join(' - '); // Ex: "How high will unemployment get?"
-        
+        // Tem subtitle na question
+        optionName = parts[parts.length - 1].trim(); // Ex: "Above 8%", "Above 9%"
+        baseQuestion = parts.slice(0, -1).join(' - '); // Ex: "How high will unemployment get?"
+      } else if (marketData && marketData.market_id) {
+        // Tenta extrair do market_id (formato: TICKER-OPTION_YES/NO)
+        // Ex: "KXNEWPOPE-70-PPIZ_YES" -> opção é "PPIZ"
+        const marketIdParts = marketData.market_id.split('_');
+        if (marketIdParts.length >= 2) {
+          const tickerPart = marketIdParts[0]; // "KXNEWPOPE-70-PPIZ"
+          const tickerParts = tickerPart.split('-');
+          if (tickerParts.length >= 3) {
+            // Última parte do ticker geralmente é a opção
+            optionName = tickerParts[tickerParts.length - 1]; // "PPIZ"
+          }
+        }
+      }
+      
+      if (optionName && optionName.length > 0) {
         // YES = a opção específica acontece, NO = não acontece
         const displayText = outcome === 'YES' 
-          ? `${optionName} (YES)`  // Ex: "Above 8% (YES)"
-          : `${optionName} (NO)`;   // Ex: "Above 8% (NO)"
+          ? `${optionName} (YES)`  // Ex: "Above 8% (YES)" ou "PPIZ (YES)"
+          : `${optionName} (NO)`;   // Ex: "Above 8% (NO)" ou "PPIZ (NO)"
         
         return {
           contractName: optionName,  // Nome da opção específica
@@ -178,14 +200,18 @@ const DashboardModern = ({ user, onLogout }) => {
           displayOption: displayText  // Mostra opção específica + YES/NO
         };
       }
-      // Fallback: se não conseguir extrair, usa YES/NO genérico
-      const optionText = outcome === 'YES' ? 'YES' : 'NO';
+      
+      // Fallback: mostra a question completa + YES/NO
+      const displayText = outcome === 'YES' 
+        ? `${question} (YES)`
+        : `${question} (NO)`;
+      
       return {
         contractName: null,
         baseQuestion: question,
-        option: optionText,
+        option: outcome,
         hasMultipleOptions: false,
-        displayOption: optionText
+        displayOption: displayText
       };
     }
     
@@ -1123,7 +1149,7 @@ const DashboardModern = ({ user, onLogout }) => {
                 {/* Links para os mercados com informações detalhadas */}
                 <div className="market-links">
                   {opp.market1_url && (() => {
-                    const details1 = getMarketDetails(opp.market1_question, opp.exchange1, opp.market1_outcome);
+                    const details1 = getMarketDetails(opp.market1_question, opp.exchange1, opp.market1_outcome, opp.market1_data);
                     return (
                       <a 
                         href={opp.market1_url} 
@@ -1159,7 +1185,7 @@ const DashboardModern = ({ user, onLogout }) => {
                     );
                   })()}
                   {opp.market2_url && opp.market2_url !== opp.market1_url && (() => {
-                    const details2 = getMarketDetails(opp.market2_question, opp.exchange2, opp.market2_outcome);
+                    const details2 = getMarketDetails(opp.market2_question, opp.exchange2, opp.market2_outcome, opp.market2_data);
                     return (
                       <a 
                         href={opp.market2_url} 
