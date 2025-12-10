@@ -1,13 +1,13 @@
 {
   "files": {
     "main.css": "/Predictionarb/static/css/main.36bb8e3b.css",
-    "main.js": "/Predictionarb/static/js/main.1d6ab686.js",
+    "main.js": "/Predictionarb/static/js/main.b90bb350.js",
     "index.html": "/Predictionarb/index.html",
     "main.36bb8e3b.css.map": "/Predictionarb/static/css/main.36bb8e3b.css.map",
-    "main.1d6ab686.js.map": "/Predictionarb/static/js/main.1d6ab686.js.map"
+    "main.b90bb350.js.map": "/Predictionarb/static/js/main.b90bb350.js.map"
   },
   "entrypoints": [
     "static/css/main.36bb8e3b.css",
-    "static/js/main.1d6ab686.js"
+    "static/js/main.b90bb350.js"
   ]
 }
