@@ -537,6 +537,12 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.detail-row:last-child {
+  border-bottom: none;
 }
 
 .expiration-row {
@@ -563,13 +569,6 @@
 .expiration-date {
   font-size: 0.75rem;
   color: var(--text-tertiary);
-}
-  padding: 8px 0;
-  border-bottom: 1px solid var(--border-color);
-}
-
-.detail-row:last-child {
-  border-bottom: none;
 }
 
 .detail-row .label {
