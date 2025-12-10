@@ -194,7 +194,12 @@ class PolymarketExchange(ExchangeBase):
                                             pass
                                     
                                     # Valida se tem dados mínimos e preço válido (entre 0 e 1, não exatamente 0 ou 1)
-                                    if 0 < price < 1 and question and outcome_name:
+                                    # IMPORTANTE: Filtra mercados com liquidez muito baixa ou preços extremos
+                                    # Preços muito baixos (< 0.01) ou muito altos (> 0.99) geralmente são mercados resolvidos
+                                    if (0.01 <= price <= 0.99 and 
+                                        question and 
+                                        outcome_name and
+                                        liquidity > 0):  # Só aceita mercados com liquidez > 0
                                         market = Market(
                                             exchange=self.name,
                                             market_id=f"{market_id}_{outcome}",

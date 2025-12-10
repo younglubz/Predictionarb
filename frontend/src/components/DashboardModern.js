@@ -143,31 +143,16 @@ const DashboardModern = ({ user, onLogout }) => {
       };
     }
     
-    // Para Polymarket: pode ter múltiplos outcomes além de Yes/No
+    // Para Polymarket: sempre mostra YES/NO específico
     if (exchangeLower.includes('polymarket')) {
-      // Tenta extrair o nome do outcome da question se houver indicação
-      // Ex: "Will X happen? - Yes" ou "Market: Option Name"
-      const parts = question.split(' - ');
-      if (parts.length >= 2) {
-        const lastPart = parts[parts.length - 1].trim();
-        // Se o último parte não é apenas "Yes" ou "No", pode ser um outcome específico
-        if (!/^(yes|no)$/i.test(lastPart)) {
-          return {
-            contractName: lastPart,
-            baseQuestion: parts.slice(0, -1).join(' - '),
-            option: lastPart,
-            hasMultipleOptions: true,
-            displayOption: `${lastPart} (${outcome})`
-          };
-        }
-      }
-      // Para Yes/No padrão
+      // Polymarket sempre tem Yes/No, mas vamos garantir que está claro
+      const optionText = outcome === 'YES' ? 'YES' : 'NO';
       return {
         contractName: null,
         baseQuestion: question,
-        option: outcome === 'YES' ? 'YES' : 'NO',
+        option: optionText,
         hasMultipleOptions: false,
-        displayOption: outcome === 'YES' ? 'YES' : 'NO'
+        displayOption: optionText  // Sempre mostra YES ou NO claramente
       };
     }
     
