@@ -138,7 +138,8 @@ def serialize_combinatorial_opportunity(opp) -> Dict:
                 "price": m.price,
                 "url": m.url,
                 "liquidity": m.liquidity,
-                "expires_at": m.expires_at.isoformat() if m.expires_at else None
+                "expires_at": m.expires_at.isoformat() if m.expires_at else None,
+                "market_id": m.market_id
             }
             for m in opp.markets
         ]
@@ -255,7 +256,8 @@ def serialize_expert_opportunity(opp: ArbitrageOpportunityV2) -> Dict:
                 "price": m.price,
                 "url": m.url,
                 "liquidity": m.liquidity,
-                "expires_at": m.expires_at.isoformat() if m.expires_at else None
+                "expires_at": m.expires_at.isoformat() if m.expires_at else None,
+                "market_id": m.market_id
             }
             for m in opp.markets
         ]
