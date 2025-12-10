@@ -477,13 +477,23 @@ const DashboardModern = ({ user, onLogout }) => {
       }
       
       // Para outras oportunidades, calcula a partir de expires_at
-      const expiresAt = opp.market1_expires_at || opp.expires_at;
+      // Tenta market1_expires_at primeiro, depois market2_expires_at, depois expires_at
+      const expiresAt = opp.market1_expires_at || opp.market2_expires_at || opp.expires_at;
       if (expiresAt) {
-        const expiryDate = new Date(expiresAt);
-        const now = new Date();
-        const diffMs = expiryDate - now;
-        const diffHours = diffMs / (1000 * 60 * 60);
-        return diffHours > 0 ? diffHours : Infinity; // Retorna Infinity se já expirou
+        try {
+          const expiryDate = new Date(expiresAt);
+          // Verifica se a data é válida
+          if (isNaN(expiryDate.getTime())) {
+            return Infinity;
+          }
+          const now = new Date();
+          const diffMs = expiryDate - now;
+          const diffHours = diffMs / (1000 * 60 * 60);
+          return diffHours > 0 ? diffHours : Infinity; // Retorna Infinity se já expirou
+        } catch (e) {
+          console.warn('Erro ao calcular tempo até expiração:', e, opp);
+          return Infinity;
+        }
       }
       
       // Se não tem data de expiração, retorna Infinity (vai para o final)
@@ -506,6 +516,10 @@ const DashboardModern = ({ user, onLogout }) => {
           if (timeA === Infinity && timeB === Infinity) return 0;
           if (timeA === Infinity) return 1; // Sem data vai para o final
           if (timeB === Infinity) return -1; // Sem data vai para o final
+          // Debug: log para verificar ordenação
+          if (timeA !== Infinity && timeB !== Infinity) {
+            console.log(`Ordenando: ${a.title || a.market1_question} (${timeA.toFixed(1)}h) vs ${b.title || b.market1_question} (${timeB.toFixed(1)}h)`);
+          }
           return timeA - timeB; // Menor tempo primeiro (mais próximo)
         case 'liquidity':
           const liqA = (a.market1_liquidity || 0) + (a.market2_liquidity || 0);

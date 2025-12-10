@@ -137,7 +137,8 @@ def serialize_combinatorial_opportunity(opp) -> Dict:
                 "outcome": m.outcome,
                 "price": m.price,
                 "url": m.url,
-                "liquidity": m.liquidity
+                "liquidity": m.liquidity,
+                "expires_at": m.expires_at.isoformat() if m.expires_at else None
             }
             for m in opp.markets
         ]
@@ -168,7 +169,8 @@ def serialize_probability_opportunity(opp) -> Dict:
                 "outcome": opp.market_low.outcome,
                 "price": opp.probability_low,
                 "url": opp.market_low.url,
-                "liquidity": opp.market_low.liquidity
+                "liquidity": opp.market_low.liquidity,
+                "expires_at": opp.market_low.expires_at.isoformat() if opp.market_low.expires_at else None
             },
             {
                 "exchange": opp.market_high.exchange,
@@ -176,7 +178,8 @@ def serialize_probability_opportunity(opp) -> Dict:
                 "outcome": opp.market_high.outcome,
                 "price": opp.probability_high,
                 "url": opp.market_high.url,
-                "liquidity": opp.market_high.liquidity
+                "liquidity": opp.market_high.liquidity,
+                "expires_at": opp.market_high.expires_at.isoformat() if opp.market_high.expires_at else None
             }
         ]
     }
@@ -210,7 +213,8 @@ def serialize_short_term_opportunity(opp) -> Dict:
                 "outcome": opp.market_low.outcome,
                 "price": opp.probability_low,
                 "url": opp.market_low.url,
-                "liquidity": opp.market_low.liquidity
+                "liquidity": opp.market_low.liquidity,
+                "expires_at": opp.market_low.expires_at.isoformat() if opp.market_low.expires_at else None
             },
             {
                 "exchange": opp.market_high.exchange,
@@ -218,7 +222,8 @@ def serialize_short_term_opportunity(opp) -> Dict:
                 "outcome": opp.market_high.outcome,
                 "price": opp.probability_high,
                 "url": opp.market_high.url,
-                "liquidity": opp.market_high.liquidity
+                "liquidity": opp.market_high.liquidity,
+                "expires_at": opp.market_high.expires_at.isoformat() if opp.market_high.expires_at else None
             }
         ]
     }
@@ -249,7 +254,8 @@ def serialize_expert_opportunity(opp: ArbitrageOpportunityV2) -> Dict:
                 "outcome": m.outcome,
                 "price": m.price,
                 "url": m.url,
-                "liquidity": m.liquidity
+                "liquidity": m.liquidity,
+                "expires_at": m.expires_at.isoformat() if m.expires_at else None
             }
             for m in opp.markets
         ]
