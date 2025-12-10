@@ -242,14 +242,22 @@ const DashboardModern = ({ user, onLogout }) => {
               optionName = tickerParts[tickerParts.length - 2];
             }
             
-            // Normaliza o nome
+            // Normaliza o nome para torná-lo mais legível
             if (optionName && optionName.length >= 2) {
-              // Se é tudo maiúsculo e tem mais de 2 caracteres, pode ser um código ou nome
+              // Se é tudo maiúsculo e tem mais de 2 caracteres
               if (optionName === optionName.toUpperCase()) {
-                // Tenta capitalizar apenas a primeira letra (ex: "ADELE" -> "Adele")
-                optionName = optionName.charAt(0) + optionName.slice(1).toLowerCase();
+                // Se parece ser um código (4 letras, sem vogais ou padrão específico)
+                const isCode = optionName.length === 4 && !/[aeiouAEIOU]/.test(optionName);
+                if (isCode) {
+                  // Mantém como código mas adiciona indicação (ex: "PPIZ" -> "PPIZ (código)")
+                  // Ou tenta capitalizar normalmente
+                  optionName = optionName.charAt(0) + optionName.slice(1).toLowerCase();
+                } else {
+                  // Tenta capitalizar apenas a primeira letra (ex: "ADELE" -> "Adele", "DARRYN" -> "Darryn")
+                  optionName = optionName.charAt(0) + optionName.slice(1).toLowerCase();
+                }
               } else {
-                // Já está capitalizado ou misto, mantém como está
+                // Já está capitalizado ou misto, garante primeira letra maiúscula
                 optionName = optionName.charAt(0).toUpperCase() + optionName.slice(1);
               }
             }
@@ -1244,10 +1252,15 @@ const DashboardModern = ({ user, onLogout }) => {
                           </div>
                           {details1.hasMultipleOptions && details1.contractName && (
                             <div className="link-note">
-                              📋 Opção específica: {details1.contractName}
+                              📋 Opção específica: <strong>{details1.contractName}</strong>
                             </div>
                           )}
-                          {!details1.hasMultipleOptions && (
+                          {!details1.hasMultipleOptions && details1.displayOption && details1.displayOption !== details1.option && (
+                            <div className="link-note">
+                              📋 {details1.displayOption}
+                            </div>
+                          )}
+                          {!details1.hasMultipleOptions && (!details1.displayOption || details1.displayOption === details1.option) && (
                             <div className="link-note">
                               📋 Tipo: {details1.option === 'YES' ? 'Yes' : details1.option === 'NO' ? 'No' : details1.option}
                             </div>

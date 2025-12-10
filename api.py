@@ -320,15 +320,18 @@ def serialize_market(market: Market) -> Dict:
     # Para Kalshi, tenta extrair a opção específica do question ou market_id
     option_specific = None
     if market.exchange.lower() == "kalshi":
-        # Se a question tem " - ", a última parte é a opção
+        # PRIORIDADE 1: Se a question tem " - ", a última parte é a opção (nome legível)
         if " - " in market.question:
             parts = market.question.split(" - ")
             if len(parts) >= 2:
                 option_specific = parts[-1].strip()
-                if option_specific == "::" or not option_specific:
+                # Remove "YES" ou "NO" do final se existir
+                option_specific = option_specific.replace(" YES", "").replace(" NO", "").strip()
+                if option_specific == "::" or not option_specific or option_specific == "":
                     option_specific = None
         
-        # Se não encontrou no question, tenta do market_id
+        # PRIORIDADE 2: Se não encontrou no question, tenta do market_id
+        # Mas só se não parecer ser um código genérico (números, códigos muito curtos)
         if not option_specific and market.market_id:
             market_id_parts = market.market_id.split("_")
             if len(market_id_parts) >= 2:
@@ -336,7 +339,13 @@ def serialize_market(market: Market) -> Dict:
                 ticker_parts = ticker.split("-")
                 # Última parte do ticker geralmente é a opção
                 if len(ticker_parts) >= 2:
-                    option_specific = ticker_parts[-1]
+                    candidate = ticker_parts[-1]
+                    # Verifica se não é uma data ou número genérico
+                    is_date = /^\d+[A-Z]{3}\d+$/i.match(candidate) or /^\d{4}$/.test(candidate)
+                    is_number = /^\d+$/.test(candidate)
+                    # Se é um código curto (2-4 letras), pode ser um nome/código válido
+                    if not is_date and not is_number and len(candidate) >= 2:
+                        option_specific = candidate
     
     return {
         "exchange": market.exchange,
