@@ -314,6 +314,27 @@ def serialize_expert_opportunity(opp: ArbitrageOpportunityV2) -> Dict:
 
 def serialize_market(market: Market) -> Dict:
     """Serializa mercado para JSON"""
+    # Para Kalshi, tenta extrair a opção específica do question ou market_id
+    option_specific = None
+    if market.exchange.lower() == "kalshi":
+        # Se a question tem " - ", a última parte é a opção
+        if " - " in market.question:
+            parts = market.question.split(" - ")
+            if len(parts) >= 2:
+                option_specific = parts[-1].strip()
+                if option_specific == "::" or not option_specific:
+                    option_specific = None
+        
+        # Se não encontrou no question, tenta do market_id
+        if not option_specific and market.market_id:
+            market_id_parts = market.market_id.split("_")
+            if len(market_id_parts) >= 2:
+                ticker = market_id_parts[0]
+                ticker_parts = ticker.split("-")
+                # Última parte do ticker geralmente é a opção
+                if len(ticker_parts) >= 2:
+                    option_specific = ticker_parts[-1]
+    
     return {
         "exchange": market.exchange,
         "market_id": market.market_id,
@@ -324,6 +345,8 @@ def serialize_market(market: Market) -> Dict:
         "liquidity": market.liquidity,
         "expires_at": market.expires_at.isoformat() if market.expires_at else None,
         "url": market.url,
+        # Inclui opção específica extraída (para Kalshi)
+        "option_specific": option_specific,
         # Inclui dados completos para permitir extração de opções específicas no frontend
         "full_data": {
             "exchange": market.exchange,
@@ -334,7 +357,8 @@ def serialize_market(market: Market) -> Dict:
             "volume_24h": market.volume_24h,
             "liquidity": market.liquidity,
             "expires_at": market.expires_at.isoformat() if market.expires_at else None,
-            "url": market.url
+            "url": market.url,
+            "option_specific": option_specific
         }
     }
 

@@ -166,103 +166,92 @@ const DashboardModern = ({ user, onLogout }) => {
       };
     }
     
-    // Para Kalshi: extrai opção específica do subtitle ou market_id (igual PredictIt)
+    // Para Kalshi: extrai opção específica do subtitle, option_specific ou market_id (igual PredictIt)
     if (exchangeLower.includes('kalshi')) {
-      // Kalshi pode ter formato: "Question - Option Name" (ex: "Who will be the cover athlete? - Darryn Peterson")
-      // O subtitle contém o nome específico da opção (atleta, candidato, etc.)
-      // Formato similar ao PredictIt: "Question - ContractName"
-      const parts = question.split(' - ');
+      // Primeiro, tenta usar option_specific do backend (já extraído)
       let optionName = null;
       let baseQuestion = question;
       
-      if (parts.length >= 2) {
-        // Tem subtitle na question - este é o nome específico da opção
-        optionName = parts[parts.length - 1].trim(); // Ex: "Darryn Peterson", "Above 8%", "PPIZ"
-        baseQuestion = parts.slice(0, -1).join(' - '); // Ex: "Who will be the cover athlete?"
-        
-        // Remove "YES" ou "NO" do final se existir (igual PredictIt)
-        const cleanOption = optionName.replace(/\s+(YES|NO)$/i, '').trim();
-        if (cleanOption && cleanOption !== "::" && cleanOption.length > 0) {
-          optionName = cleanOption;
+      if (actualMarketData && actualMarketData.option_specific) {
+        optionName = actualMarketData.option_specific.trim();
+        if (optionName && optionName !== "::" && optionName.length > 0) {
+          // Remove "YES" ou "NO" do final se existir
+          const cleanOption = optionName.replace(/\s+(YES|NO)$/i, '').trim();
+          if (cleanOption && cleanOption !== "::" && cleanOption.length > 0) {
+            optionName = cleanOption;
+          } else {
+            optionName = null;
+          }
         } else {
-          optionName = null; // Subtitle vazio ou inválido
-        }
-        
-        // Se encontrou um nome/opção válido no subtitle, usa ele (igual PredictIt)
-        if (optionName && optionName.length > 0) {
-          // Formato igual PredictIt: "OptionName (YES)" ou "OptionName (NO)"
-          const displayText = `${optionName} (${outcome})`; // Ex: "Darryn Peterson (YES)" ou "Above 8% (NO)"
-          
-          return {
-            contractName: optionName,  // Nome da opção específica (igual PredictIt)
-            baseQuestion: baseQuestion,
-            option: optionName,  // Opção específica (igual PredictIt)
-            hasMultipleOptions: true,  // Kalshi tem múltiplas opções por mercado
-            displayOption: displayText  // Mostra opção específica + YES/NO (igual PredictIt)
-          };
+          optionName = null;
         }
       }
       
-      // Se não encontrou no subtitle, tenta extrair do market_id (mais agressivo)
+      // Se não encontrou no option_specific, tenta do question (subtitle)
+      if (!optionName) {
+        const parts = question.split(' - ');
+        if (parts.length >= 2) {
+          // Tem subtitle na question - este é o nome específico da opção
+          optionName = parts[parts.length - 1].trim(); // Ex: "Darryn Peterson", "Above 8%", "PPIZ"
+          baseQuestion = parts.slice(0, -1).join(' - '); // Ex: "Who will be the cover athlete?"
+          
+          // Remove "YES" ou "NO" do final se existir (igual PredictIt)
+          const cleanOption = optionName.replace(/\s+(YES|NO)$/i, '').trim();
+          if (cleanOption && cleanOption !== "::" && cleanOption.length > 0) {
+            optionName = cleanOption;
+          } else {
+            optionName = null; // Subtitle vazio ou inválido
+          }
+        }
+      }
+      
+      // Se encontrou um nome/opção válido, usa ele (igual PredictIt)
+      if (optionName && optionName.length > 0 && optionName !== "::") {
+        // Formato igual PredictIt: "OptionName (YES)" ou "OptionName (NO)"
+        const displayText = `${optionName} (${outcome})`; // Ex: "Darryn Peterson (YES)" ou "Above 8% (NO)"
+        
+        return {
+          contractName: optionName,  // Nome da opção específica (igual PredictIt)
+          baseQuestion: baseQuestion || question,
+          option: optionName,  // Opção específica (igual PredictIt)
+          hasMultipleOptions: true,  // Kalshi tem múltiplas opções por mercado
+          displayOption: displayText  // Mostra opção específica + YES/NO (igual PredictIt)
+        };
+      }
+      
+      // Se ainda não encontrou, tenta extrair do market_id (mais agressivo)
       if (!optionName && actualMarketData && actualMarketData.market_id) {
         // Tenta extrair do market_id (formato: TICKER-OPTION_YES/NO)
         // Ex: "KXNEWPOPE-70-PPIZ_YES" -> opção é "PPIZ"
         // Ex: "KXCOVER-DARRYN_YES" -> opção pode estar no ticker
         // Ex: "KXNEXTISRAELPM-45JAN01-YLEV_YES" -> opção é "YLEV"
+        // Ex: "KXBOND-ADELE_YES" -> opção é "ADELE"
         const marketIdParts = actualMarketData.market_id.split('_');
         if (marketIdParts.length >= 2) {
-          const tickerPart = marketIdParts[0]; // "KXCOVER-DARRYN" ou "KXNEWPOPE-70-PPIZ" ou "KXNEXTISRAELPM-45JAN01-YLEV"
+          const tickerPart = marketIdParts[0]; // "KXCOVER-DARRYN" ou "KXNEWPOPE-70-PPIZ" ou "KXBOND-ADELE"
           const tickerParts = tickerPart.split('-');
           
-          // Se o ticker tem 3+ partes, a última geralmente é a opção
-          if (tickerParts.length >= 3) {
-            optionName = tickerParts[tickerParts.length - 1]; // "PPIZ", "YLEV", "DARRYN"
-            // Tenta normalizar (capitalizar se for tudo maiúsculo)
-            if (optionName === optionName.toUpperCase() && optionName.length > 2) {
-              // Se é tudo maiúsculo e tem mais de 2 caracteres, pode ser um código
-              // Tenta capitalizar apenas a primeira letra
-              optionName = optionName.charAt(0) + optionName.slice(1).toLowerCase();
-            }
-          } else if (tickerParts.length === 2) {
-            // Pode ser formato "KXCOVER-DARRYN" onde DARRYN é a opção
-            const lastPart = tickerParts[1];
-            // Verifica se não parece ser uma data ou número
-            if (lastPart.length > 2 && lastPart === lastPart.toUpperCase() && !/^\d+$/.test(lastPart)) {
-              optionName = lastPart.charAt(0) + lastPart.slice(1).toLowerCase();
-            }
-          }
-        }
-      }
-      
-      if (optionName && optionName.length > 0 && optionName !== "::") {
-        // Formato igual PredictIt: "OptionName (YES)" ou "OptionName (NO)"
-        const displayText = `${optionName} (${outcome})`; // Ex: "Darryn Peterson (YES)" ou "YLEV (YES)"
-        
-        return {
-          contractName: optionName,  // Nome da opção específica
-          baseQuestion: baseQuestion || question,
-          option: optionName,  // Opção específica
-          hasMultipleOptions: true,  // Kalshi tem múltiplas opções por mercado
-          displayOption: displayText  // Mostra opção específica + YES/NO
-        };
-      }
-      
-      // Se ainda não encontrou, tenta extrair qualquer identificador do market_id
-      if (!optionName && actualMarketData && actualMarketData.market_id) {
-        const marketIdParts = actualMarketData.market_id.split('_');
-        if (marketIdParts.length >= 2) {
-          const tickerPart = marketIdParts[0];
-          const tickerParts = tickerPart.split('-');
-          
-          // Pega a última parte do ticker como opção (mesmo que seja um código)
+          // Pega a última parte do ticker como opção (sempre)
           if (tickerParts.length >= 2) {
-            optionName = tickerParts[tickerParts.length - 1];
-            // Se parece ser um código (tudo maiúsculo, sem espaços), usa como está
-            if (optionName === optionName.toUpperCase() && optionName.length >= 2) {
-              // Mantém como código (ex: "YLEV", "PPIZ")
-            } else {
-              // Tenta capitalizar
-              optionName = optionName.charAt(0).toUpperCase() + optionName.slice(1).toLowerCase();
+            optionName = tickerParts[tickerParts.length - 1]; // "PPIZ", "YLEV", "DARRYN", "ADELE"
+            
+            // Verifica se não é uma data (formato: 45JAN01, 2025, etc.)
+            const isDate = /^\d+[A-Z]{3}\d+$/i.test(optionName) || /^\d{4}$/.test(optionName);
+            if (isDate && tickerParts.length >= 3) {
+              // Se a última parte é uma data, pega a penúltima
+              optionName = tickerParts[tickerParts.length - 2];
+            }
+            
+            // Normaliza o nome
+            if (optionName && optionName.length >= 2) {
+              // Se é tudo maiúsculo e tem mais de 2 caracteres, pode ser um código ou nome
+              if (optionName === optionName.toUpperCase()) {
+                // Tenta capitalizar apenas a primeira letra (ex: "ADELE" -> "Adele")
+                optionName = optionName.charAt(0) + optionName.slice(1).toLowerCase();
+              } else {
+                // Já está capitalizado ou misto, mantém como está
+                optionName = optionName.charAt(0).toUpperCase() + optionName.slice(1);
+              }
             }
           }
         }
@@ -270,14 +259,15 @@ const DashboardModern = ({ user, onLogout }) => {
       
       // Se encontrou qualquer opção (mesmo que seja um código), mostra ela
       if (optionName && optionName.length > 0 && optionName !== "::") {
-        const displayText = `${optionName} (${outcome})`;
+        // Formato igual PredictIt: "OptionName (YES)" ou "OptionName (NO)"
+        const displayText = `${optionName} (${outcome})`; // Ex: "Adele (YES)" ou "PPIZ (YES)"
         
         return {
-          contractName: optionName,
+          contractName: optionName,  // Nome da opção específica
           baseQuestion: baseQuestion || question,
-          option: optionName,
-          hasMultipleOptions: true,
-          displayOption: displayText
+          option: optionName,  // Opção específica
+          hasMultipleOptions: true,  // Kalshi tem múltiplas opções por mercado
+          displayOption: displayText  // Mostra opção específica + YES/NO
         };
       }
       
