@@ -8,7 +8,7 @@ from datetime import datetime
 from exchanges.base import Market
 from exchanges import (PolymarketExchange, PredictItV2Exchange, KalshiV2Exchange,
                        AugurExchange, ManifoldExchange, AzuroExchange, 
-                       OmenExchange, SeerExchange, PolyRouterExchange)
+                       OmenExchange, SeerExchange)
 from matcher_improved import ImprovedEventMatcher
 from arbitrage import ArbitrageEngine, ArbitrageOpportunity
 from arbitrage_combinatorial import CombinatorialArbitrage, CombinatorialOpportunity
@@ -24,8 +24,7 @@ class ArbitrageMonitor:
     def __init__(self):
         self.console = Console()
         self.exchanges = [
-            PolyRouterExchange(),  # API agregada - PRIORIDADE
-            PolymarketExchange(),  # Fonte original
+            PolymarketExchange(),  # Polymarket API direta
             ManifoldExchange(),
             PredictItV2Exchange(), # PredictIt (CFTC regulada)
             KalshiV2Exchange(),    # Kalshi Demo API (CFTC regulada)

@@ -71,6 +71,46 @@ const DashboardModern = ({ user, onLogout }) => {
       .trim();
   };
 
+  // Função para formatar data de conclusão
+  const formatExpirationDate = (expiresAt) => {
+    if (!expiresAt) return 'N/A';
+    try {
+      const date = new Date(expiresAt);
+      if (isNaN(date.getTime())) return 'N/A';
+      
+      const now = new Date();
+      const diffMs = date - now;
+      const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+      const diffHours = Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      
+      if (diffMs < 0) {
+        return 'Expirado';
+      } else if (diffDays > 0) {
+        return `${diffDays}d ${diffHours}h`;
+      } else if (diffHours > 0) {
+        return `${diffHours}h`;
+      } else {
+        const diffMinutes = Math.floor(diffMs / (1000 * 60));
+        return `${diffMinutes}min`;
+      }
+    } catch (e) {
+      return 'N/A';
+    }
+  };
+
+  // Função para obter data completa de conclusão
+  const getExpirationDateFull = (opp) => {
+    const expiresAt = opp.market1_expires_at || opp.market2_expires_at || opp.expires_at;
+    if (!expiresAt) return null;
+    try {
+      const date = new Date(expiresAt);
+      if (isNaN(date.getTime())) return null;
+      return date;
+    } catch (e) {
+      return null;
+    }
+  };
+
   // Função para extrair informações detalhadas do mercado
   const getMarketDetails = (question, exchange, outcome) => {
     const exchangeLower = (exchange || '').toLowerCase();
@@ -848,6 +888,38 @@ const DashboardModern = ({ user, onLogout }) => {
 
                   {/* Detalhes financeiros */}
                   <div className="opportunity-details">
+                    {/* Data de Conclusão - Sempre visível */}
+                    {(() => {
+                      const expiryDate = getExpirationDateFull(opp);
+                      const timeToExpiry = opp.type === 'short_term' && opp.time_to_expiry_hours 
+                        ? `${opp.time_to_expiry_hours.toFixed(1)}h` 
+                        : formatExpirationDate(opp.market1_expires_at || opp.market2_expires_at || opp.expires_at);
+                      
+                      return (
+                        <div className="detail-row expiration-row">
+                          <span className="label">📅 Data de Conclusão:</span>
+                          <span className="value expiration-value">
+                            {expiryDate ? (
+                              <>
+                                <span className="expiration-time">{timeToExpiry}</span>
+                                <span className="expiration-date">
+                                  ({expiryDate.toLocaleDateString('pt-BR', { 
+                                    day: '2-digit', 
+                                    month: '2-digit', 
+                                    year: 'numeric',
+                                    hour: '2-digit',
+                                    minute: '2-digit'
+                                  })})
+                                </span>
+                              </>
+                            ) : (
+                              <span>N/A</span>
+                            )}
+                          </span>
+                        </div>
+                      );
+                    })()}
+                    
                     {opp.type === 'short_term' ? (
                       <>
                         <div className="detail-row">

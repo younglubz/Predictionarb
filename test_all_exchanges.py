@@ -4,7 +4,6 @@ import asyncio
 from exchanges.polymarket import PolymarketExchange
 from exchanges.manifold import ManifoldExchange
 from exchanges.predictit_v2 import PredictItV2Exchange
-from exchanges.polyrouter import PolyRouterExchange
 from exchanges.kalshi_v2 import KalshiV2Exchange
 from rich.console import Console
 from rich.table import Table
@@ -16,7 +15,6 @@ async def test_all():
     console.print("\n[bold cyan]Testando Todas as Exchanges[/bold cyan]\n")
     
     exchanges = [
-        ("PolyRouter", PolyRouterExchange()),
         ("Polymarket", PolymarketExchange()),
         ("Manifold", ManifoldExchange()),
         ("PredictIt", PredictItV2Exchange()),

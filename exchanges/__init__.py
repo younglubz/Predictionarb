@@ -9,11 +9,10 @@ from exchanges.manifold import ManifoldExchange
 from exchanges.azuro import AzuroExchange
 from exchanges.omen import OmenExchange
 from exchanges.seer import SeerExchange
-from exchanges.polyrouter import PolyRouterExchange
 from exchanges.base import ExchangeBase, Market
 
 __all__ = ["PolymarketExchange", "PredictItExchange", "PredictItV2Exchange",
            "KalshiExchange", "KalshiV2Exchange", "AugurExchange", "ManifoldExchange",
-           "AzuroExchange", "OmenExchange", "SeerExchange", "PolyRouterExchange",
+           "AzuroExchange", "OmenExchange", "SeerExchange",
            "ExchangeBase", "Market"]
 
