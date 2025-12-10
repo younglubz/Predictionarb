@@ -112,7 +112,7 @@ const DashboardModern = ({ user, onLogout }) => {
   };
 
   // Função para extrair informações detalhadas do mercado
-  const getMarketDetails = (question, exchange, outcome) => {
+  const getMarketDetails = (question, exchange, outcome, marketData = null) => {
     const exchangeLower = (exchange || '').toLowerCase();
     
     // Para PredictIt: extrai o nome do contrato específico
@@ -123,37 +123,113 @@ const DashboardModern = ({ user, onLogout }) => {
         const contractName = parts[parts.length - 1].trim();
         // Remove "YES" ou "NO" do final se existir
         const cleanContract = contractName.replace(/\s+(YES|NO)$/i, '').trim();
-        return {
-          contractName: cleanContract || contractName,
-          baseQuestion: parts.slice(0, -1).join(' - '),
-          option: cleanContract || contractName, // Mostra o nome do contrato como opção
-          hasMultipleOptions: true
-        };
+        if (cleanContract) {
+          return {
+            contractName: cleanContract,
+            baseQuestion: parts.slice(0, -1).join(' - '),
+            option: cleanContract, // Mostra o nome do contrato como opção
+            hasMultipleOptions: true,
+            displayOption: `${cleanContract} (${outcome})` // Ex: "Republican (YES)"
+          };
+        }
       }
+      // Fallback: usa outcome se não conseguir extrair
       return {
         contractName: null,
         baseQuestion: question,
         option: outcome,
-        hasMultipleOptions: false
+        hasMultipleOptions: false,
+        displayOption: outcome
       };
     }
     
-    // Para Manifold: apenas YES/NO
+    // Para Polymarket: pode ter múltiplos outcomes além de Yes/No
+    if (exchangeLower.includes('polymarket')) {
+      // Tenta extrair o nome do outcome da question se houver indicação
+      // Ex: "Will X happen? - Yes" ou "Market: Option Name"
+      const parts = question.split(' - ');
+      if (parts.length >= 2) {
+        const lastPart = parts[parts.length - 1].trim();
+        // Se o último parte não é apenas "Yes" ou "No", pode ser um outcome específico
+        if (!/^(yes|no)$/i.test(lastPart)) {
+          return {
+            contractName: lastPart,
+            baseQuestion: parts.slice(0, -1).join(' - '),
+            option: lastPart,
+            hasMultipleOptions: true,
+            displayOption: `${lastPart} (${outcome})`
+          };
+        }
+      }
+      // Para Yes/No padrão
+      return {
+        contractName: null,
+        baseQuestion: question,
+        option: outcome === 'YES' ? 'YES' : 'NO',
+        hasMultipleOptions: false,
+        displayOption: outcome === 'YES' ? 'YES' : 'NO'
+      };
+    }
+    
+    // Para Kalshi: pode ter outcomes específicos
+    if (exchangeLower.includes('kalshi')) {
+      // Kalshi geralmente tem Yes/No, mas pode ter nomes específicos
+      // Verifica se a question indica um outcome específico
+      const parts = question.split(' - ');
+      if (parts.length >= 2) {
+        const lastPart = parts[parts.length - 1].trim();
+        if (!/^(yes|no)$/i.test(lastPart)) {
+          return {
+            contractName: lastPart,
+            baseQuestion: parts.slice(0, -1).join(' - '),
+            option: lastPart,
+            hasMultipleOptions: true,
+            displayOption: `${lastPart} (${outcome})`
+          };
+        }
+      }
+      return {
+        contractName: null,
+        baseQuestion: question,
+        option: outcome === 'YES' ? 'YES' : 'NO',
+        hasMultipleOptions: false,
+        displayOption: outcome === 'YES' ? 'YES' : 'NO'
+      };
+    }
+    
+    // Para Manifold: sempre YES/NO
     if (exchangeLower.includes('manifold')) {
       return {
         contractName: null,
         baseQuestion: question,
         option: outcome === 'YES' ? 'YES' : 'NO',
-        hasMultipleOptions: false
+        hasMultipleOptions: false,
+        displayOption: outcome === 'YES' ? 'YES' : 'NO'
       };
     }
     
-    // Para outras exchanges: usa outcome padrão
+    // Para outras exchanges: usa outcome padrão, mas tenta melhorar
+    const parts = question.split(' - ');
+    if (parts.length >= 2) {
+      const lastPart = parts[parts.length - 1].trim();
+      // Se não é apenas Yes/No, pode ser um outcome específico
+      if (!/^(yes|no)$/i.test(lastPart)) {
+        return {
+          contractName: lastPart,
+          baseQuestion: parts.slice(0, -1).join(' - '),
+          option: lastPart,
+          hasMultipleOptions: true,
+          displayOption: `${lastPart} (${outcome})`
+        };
+      }
+    }
+    
     return {
       contractName: null,
       baseQuestion: question,
-      option: outcome,
-      hasMultipleOptions: false
+      option: outcome || 'YES',
+      hasMultipleOptions: false,
+      displayOption: outcome || 'YES'
     };
   };
 
@@ -166,20 +242,34 @@ const DashboardModern = ({ user, onLogout }) => {
     
     if (opp.type === 'probability') {
       // Arbitragem por probabilidade (entre exchanges) - RESUMIDO
+      const details1 = getMarketDetails(opp.market1_question, opp.exchange1, opp.market1_outcome);
+      const details2 = getMarketDetails(opp.market2_question, opp.exchange2, opp.market2_outcome);
+      
       steps.push(`📊 ESTRATÉGIA: Arbitragem por Spread de Probabilidade`);
       steps.push(`   Spread: ${(opp.spread_pct || 0).toFixed(2)}% | Lucro: ${(opp.profit_percent || 0).toFixed(2)}%`);
       steps.push(``);
       steps.push(`1️⃣ Comprar na ${exchange1Name}:`);
       steps.push(`   • Link: ${opp.market1_url || 'N/A'}`);
-      steps.push(`   • Opção: ${opp.market1_outcome === 'YES' ? 'Yes' : 'No'} @ $${(opp.market1_price || opp.probability_low || 0).toFixed(2)}`);
+      steps.push(`   • Opção específica: ${details1.displayOption || details1.option}`);
+      steps.push(`   • Preço: $${(opp.market1_price || opp.probability_low || 0).toFixed(2)}`);
+      if (details1.hasMultipleOptions && details1.contractName) {
+        steps.push(`   • ⚠️ IMPORTANTE: Selecione o contrato "${details1.contractName}"`);
+      }
       steps.push(``);
       steps.push(`2️⃣ Vender na ${exchange2Name}:`);
       steps.push(`   • Link: ${opp.market2_url || 'N/A'}`);
-      steps.push(`   • Opção: ${opp.market2_outcome === 'YES' ? 'Yes' : 'No'} @ $${(opp.market2_price || opp.probability_high || 0).toFixed(2)}`);
+      steps.push(`   • Opção específica: ${details2.displayOption || details2.option}`);
+      steps.push(`   • Preço: $${(opp.market2_price || opp.probability_high || 0).toFixed(2)}`);
+      if (details2.hasMultipleOptions && details2.contractName) {
+        steps.push(`   • ⚠️ IMPORTANTE: Selecione o contrato "${details2.contractName}"`);
+      }
       steps.push(``);
       steps.push(`3️⃣ Aguardar resolução para lucro garantido de ${(opp.profit_percent || 0).toFixed(2)}%`);
     } else if (opp.type === 'short_term') {
       // Arbitragem de curto prazo (trades rápidos/diários) - RESUMIDO
+      const details1 = getMarketDetails(opp.market1_question, opp.exchange1, opp.market1_outcome);
+      const details2 = getMarketDetails(opp.market2_question, opp.exchange2, opp.market2_outcome);
+      
       steps.push(`⚡ ESTRATÉGIA: Arbitragem de Curto Prazo`);
       steps.push(`   ⏱️ Expira em ${(opp.time_to_expiry_hours || 0).toFixed(1)}h | Risco: ${opp.risk_level || 'médio'} | Lucro: ${(opp.profit_percent || 0).toFixed(2)}%`);
       steps.push(``);
@@ -187,15 +277,26 @@ const DashboardModern = ({ user, onLogout }) => {
       steps.push(``);
       steps.push(`1️⃣ Comprar na ${exchange1Name}:`);
       steps.push(`   • Link: ${opp.market1_url || 'N/A'}`);
-      steps.push(`   • Opção: ${opp.market1_outcome === 'YES' ? 'Yes' : 'No'} @ $${(opp.market1_price || opp.probability_low || 0).toFixed(2)}`);
+      steps.push(`   • Opção específica: ${details1.displayOption || details1.option}`);
+      steps.push(`   • Preço: $${(opp.market1_price || opp.probability_low || 0).toFixed(2)}`);
+      if (details1.hasMultipleOptions && details1.contractName) {
+        steps.push(`   • ⚠️ IMPORTANTE: Selecione o contrato "${details1.contractName}"`);
+      }
       steps.push(``);
       steps.push(`2️⃣ Vender na ${exchange2Name}:`);
       steps.push(`   • Link: ${opp.market2_url || 'N/A'}`);
-      steps.push(`   • Opção: ${opp.market2_outcome === 'YES' ? 'Yes' : 'No'} @ $${(opp.market2_price || opp.probability_high || 0).toFixed(2)}`);
+      steps.push(`   • Opção específica: ${details2.displayOption || details2.option}`);
+      steps.push(`   • Preço: $${(opp.market2_price || opp.probability_high || 0).toFixed(2)}`);
+      if (details2.hasMultipleOptions && details2.contractName) {
+        steps.push(`   • ⚠️ IMPORTANTE: Selecione o contrato "${details2.contractName}"`);
+      }
       steps.push(``);
       steps.push(`3️⃣ Fechar posição antes da expiração ou aguardar resolução`);
     } else if (opp.type === 'combinatorial') {
       // Arbitragem combinatória (mesma exchange) - RESUMIDO
+      const details1 = getMarketDetails(opp.market1_question, opp.exchange1, opp.market1_outcome);
+      const details2 = getMarketDetails(opp.market2_question, opp.exchange2 || opp.exchange1, opp.market2_outcome);
+      
       steps.push(`🧮 ESTRATÉGIA: Arbitragem Combinatória`);
       steps.push(`   Tipo: ${opp.strategy === 'complementary_buy' ? 'Comprar ambos' : 'Vender ambos'} | Lucro: ${(opp.profit_percent || 0).toFixed(2)}%`);
       steps.push(``);
@@ -205,27 +306,50 @@ const DashboardModern = ({ user, onLogout }) => {
       steps.push(``);
       if (opp.strategy === 'complementary_buy') {
         steps.push(`2️⃣ Comprar AMBAS as opções no mesmo mercado:`);
-        steps.push(`   • ${opp.market1_outcome === 'YES' ? 'Yes' : 'No'} @ $${(opp.market1_price || 0).toFixed(2)}`);
-        steps.push(`   • ${opp.market2_outcome === 'YES' ? 'Yes' : 'No'} @ $${(opp.market2_price || 0).toFixed(2)}`);
+        steps.push(`   • Opção 1: ${details1.displayOption || details1.option} @ $${(opp.market1_price || 0).toFixed(2)}`);
+        if (details1.hasMultipleOptions && details1.contractName) {
+          steps.push(`     ⚠️ Selecione: "${details1.contractName}"`);
+        }
+        steps.push(`   • Opção 2: ${details2.displayOption || details2.option} @ $${(opp.market2_price || 0).toFixed(2)}`);
+        if (details2.hasMultipleOptions && details2.contractName) {
+          steps.push(`     ⚠️ Selecione: "${details2.contractName}"`);
+        }
         steps.push(`   • Soma: ${(((opp.market1_price || 0) + (opp.market2_price || 0)) * 100).toFixed(1)}% < 100% → Lucro garantido`);
       } else {
         steps.push(`2️⃣ Vender AMBAS as opções no mesmo mercado:`);
-        steps.push(`   • ${opp.market1_outcome === 'YES' ? 'Yes' : 'No'} @ $${(opp.market1_price || 0).toFixed(2)}`);
-        steps.push(`   • ${opp.market2_outcome === 'YES' ? 'Yes' : 'No'} @ $${(opp.market2_price || 0).toFixed(2)}`);
+        steps.push(`   • Opção 1: ${details1.displayOption || details1.option} @ $${(opp.market1_price || 0).toFixed(2)}`);
+        if (details1.hasMultipleOptions && details1.contractName) {
+          steps.push(`     ⚠️ Selecione: "${details1.contractName}"`);
+        }
+        steps.push(`   • Opção 2: ${details2.displayOption || details2.option} @ $${(opp.market2_price || 0).toFixed(2)}`);
+        if (details2.hasMultipleOptions && details2.contractName) {
+          steps.push(`     ⚠️ Selecione: "${details2.contractName}"`);
+        }
         steps.push(`   • Soma: ${(((opp.market1_price || 0) + (opp.market2_price || 0)) * 100).toFixed(1)}% > 100% → Lucro garantido`);
       }
     } else {
       // Arbitragem tradicional (entre exchanges) - RESUMIDO
+      const details1 = getMarketDetails(opp.market1_question, opp.exchange1, opp.market1_outcome);
+      const details2 = getMarketDetails(opp.market2_question, opp.exchange2, opp.market2_outcome);
+      
       steps.push(`🔄 ESTRATÉGIA: Arbitragem Tradicional`);
       steps.push(`   Diferença entre ${exchange1Name} e ${exchange2Name} | Lucro: ${(opp.profit_percent || 0).toFixed(2)}%`);
       steps.push(``);
       steps.push(`1️⃣ Comprar na ${exchange1Name} (preço menor):`);
       steps.push(`   • Link: ${opp.market1_url || 'N/A'}`);
-      steps.push(`   • Opção: ${opp.market1_outcome === 'YES' ? 'Yes' : 'No'} @ $${(opp.market1_price || 0).toFixed(2)}`);
+      steps.push(`   • Opção específica: ${details1.displayOption || details1.option}`);
+      steps.push(`   • Preço: $${(opp.market1_price || 0).toFixed(2)}`);
+      if (details1.hasMultipleOptions && details1.contractName) {
+        steps.push(`   • ⚠️ IMPORTANTE: Selecione o contrato "${details1.contractName}"`);
+      }
       steps.push(``);
       steps.push(`2️⃣ Vender na ${exchange2Name} (preço maior):`);
       steps.push(`   • Link: ${opp.market2_url || 'N/A'}`);
-      steps.push(`   • Opção: ${opp.market2_outcome === 'YES' ? 'Yes' : 'No'} @ $${(opp.market2_price || 0).toFixed(2)}`);
+      steps.push(`   • Opção específica: ${details2.displayOption || details2.option}`);
+      steps.push(`   • Preço: $${(opp.market2_price || 0).toFixed(2)}`);
+      if (details2.hasMultipleOptions && details2.contractName) {
+        steps.push(`   • ⚠️ IMPORTANTE: Selecione o contrato "${details2.contractName}"`);
+      }
       steps.push(``);
       steps.push(`3️⃣ Lucro garantido de ${(opp.profit_percent || 0).toFixed(2)}% após resolução`);
     }
@@ -1014,7 +1138,7 @@ const DashboardModern = ({ user, onLogout }) => {
                         target="_blank" 
                         rel="noopener noreferrer"
                         className={`market-link ${opp.exchange1}`}
-                        title={`${details1.baseQuestion} - ${details1.option}`}
+                        title={`${details1.baseQuestion} - ${details1.displayOption || details1.option}`}
                       >
                         <ExternalLink size={14} />
                         <div className="link-content">
@@ -1023,12 +1147,19 @@ const DashboardModern = ({ user, onLogout }) => {
                             <span className="link-action">COMPRAR</span>
                           </div>
                           <div className="link-details">
-                            <span className="link-option">{details1.option}</span>
+                            <span className="link-option" title={details1.displayOption || details1.option}>
+                              {details1.displayOption || details1.option}
+                            </span>
                             <span className="link-price">${(opp.market1_price || 0).toFixed(2)}</span>
                           </div>
-                          {details1.hasMultipleOptions && (
+                          {details1.hasMultipleOptions && details1.contractName && (
                             <div className="link-note">
-                              📋 Contrato específico: {details1.contractName}
+                              📋 Opção específica: {details1.contractName}
+                            </div>
+                          )}
+                          {!details1.hasMultipleOptions && (
+                            <div className="link-note">
+                              📋 Tipo: {details1.option === 'YES' ? 'Yes' : details1.option === 'NO' ? 'No' : details1.option}
                             </div>
                           )}
                         </div>
@@ -1043,7 +1174,7 @@ const DashboardModern = ({ user, onLogout }) => {
                         target="_blank" 
                         rel="noopener noreferrer"
                         className={`market-link ${opp.exchange2}`}
-                        title={`${details2.baseQuestion} - ${details2.option}`}
+                        title={`${details2.baseQuestion} - ${details2.displayOption || details2.option}`}
                       >
                         <ExternalLink size={14} />
                         <div className="link-content">
@@ -1052,12 +1183,19 @@ const DashboardModern = ({ user, onLogout }) => {
                             <span className="link-action">VENDER</span>
                           </div>
                           <div className="link-details">
-                            <span className="link-option">{details2.option}</span>
+                            <span className="link-option" title={details2.displayOption || details2.option}>
+                              {details2.displayOption || details2.option}
+                            </span>
                             <span className="link-price">${(opp.market2_price || 0).toFixed(2)}</span>
                           </div>
-                          {details2.hasMultipleOptions && (
+                          {details2.hasMultipleOptions && details2.contractName && (
                             <div className="link-note">
-                              📋 Contrato específico: {details2.contractName}
+                              📋 Opção específica: {details2.contractName}
+                            </div>
+                          )}
+                          {!details2.hasMultipleOptions && (
+                            <div className="link-note">
+                              📋 Tipo: {details2.option === 'YES' ? 'Yes' : details2.option === 'NO' ? 'No' : details2.option}
                             </div>
                           )}
                         </div>
@@ -1116,4 +1254,5 @@ const DashboardModern = ({ user, onLogout }) => {
 };
 
 export default DashboardModern;
+
 
