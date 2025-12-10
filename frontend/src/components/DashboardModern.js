@@ -182,11 +182,13 @@ const DashboardModern = ({ user, onLogout }) => {
         
         // Remove "YES" ou "NO" do final se existir (igual PredictIt)
         const cleanOption = optionName.replace(/\s+(YES|NO)$/i, '').trim();
-        if (cleanOption) {
+        if (cleanOption && cleanOption !== "::" && cleanOption.length > 0) {
           optionName = cleanOption;
+        } else {
+          optionName = null; // Subtitle vazio ou inválido
         }
         
-        // Se encontrou um nome/opção no subtitle, usa ele (igual PredictIt)
+        // Se encontrou um nome/opção válido no subtitle, usa ele (igual PredictIt)
         if (optionName && optionName.length > 0) {
           // Formato igual PredictIt: "OptionName (YES)" ou "OptionName (NO)"
           const displayText = `${optionName} (${outcome})`; // Ex: "Darryn Peterson (YES)" ou "Above 8% (NO)"
@@ -201,38 +203,40 @@ const DashboardModern = ({ user, onLogout }) => {
         }
       }
       
-      // Se não encontrou no subtitle, tenta extrair do market_id
-      if (actualMarketData && actualMarketData.market_id) {
+      // Se não encontrou no subtitle, tenta extrair do market_id (mais agressivo)
+      if (!optionName && actualMarketData && actualMarketData.market_id) {
         // Tenta extrair do market_id (formato: TICKER-OPTION_YES/NO)
         // Ex: "KXNEWPOPE-70-PPIZ_YES" -> opção é "PPIZ"
         // Ex: "KXCOVER-DARRYN_YES" -> opção pode estar no ticker
+        // Ex: "KXNEXTISRAELPM-45JAN01-YLEV_YES" -> opção é "YLEV"
         const marketIdParts = actualMarketData.market_id.split('_');
         if (marketIdParts.length >= 2) {
-          const tickerPart = marketIdParts[0]; // "KXCOVER-DARRYN" ou "KXNEWPOPE-70-PPIZ"
+          const tickerPart = marketIdParts[0]; // "KXCOVER-DARRYN" ou "KXNEWPOPE-70-PPIZ" ou "KXNEXTISRAELPM-45JAN01-YLEV"
           const tickerParts = tickerPart.split('-');
           
           // Se o ticker tem 3+ partes, a última geralmente é a opção
           if (tickerParts.length >= 3) {
-            optionName = tickerParts[tickerParts.length - 1]; // "PPIZ" ou "DARRYN"
+            optionName = tickerParts[tickerParts.length - 1]; // "PPIZ", "YLEV", "DARRYN"
             // Tenta normalizar (capitalizar se for tudo maiúsculo)
             if (optionName === optionName.toUpperCase() && optionName.length > 2) {
+              // Se é tudo maiúsculo e tem mais de 2 caracteres, pode ser um código
+              // Tenta capitalizar apenas a primeira letra
               optionName = optionName.charAt(0) + optionName.slice(1).toLowerCase();
             }
           } else if (tickerParts.length === 2) {
             // Pode ser formato "KXCOVER-DARRYN" onde DARRYN é a opção
             const lastPart = tickerParts[1];
-            if (lastPart.length > 2 && lastPart === lastPart.toUpperCase()) {
+            // Verifica se não parece ser uma data ou número
+            if (lastPart.length > 2 && lastPart === lastPart.toUpperCase() && !/^\d+$/.test(lastPart)) {
               optionName = lastPart.charAt(0) + lastPart.slice(1).toLowerCase();
             }
           }
         }
       }
       
-      if (optionName && optionName.length > 0) {
-        // YES = a opção específica acontece, NO = não acontece
-        const displayText = outcome === 'YES' 
-          ? `${optionName} (YES)`  // Ex: "Darryn Peterson (YES)" ou "Darryn (YES)"
-          : `${optionName} (NO)`;   // Ex: "Darryn Peterson (NO)" ou "Darryn (NO)"
+      if (optionName && optionName.length > 0 && optionName !== "::") {
+        // Formato igual PredictIt: "OptionName (YES)" ou "OptionName (NO)"
+        const displayText = `${optionName} (${outcome})`; // Ex: "Darryn Peterson (YES)" ou "YLEV (YES)"
         
         return {
           contractName: optionName,  // Nome da opção específica
