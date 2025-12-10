@@ -168,26 +168,63 @@ const DashboardModern = ({ user, onLogout }) => {
     
     // Para Kalshi: extrai opção específica do subtitle ou market_id
     if (exchangeLower.includes('kalshi')) {
-      // Kalshi pode ter formato: "Question - Option Name" (ex: "How high will unemployment get? - Above 8%")
-      // Ou pode ter a opção no market_id (ex: "KXNEWPOPE-70-PPIZ" onde PPIZ é a opção)
+      // Kalshi pode ter formato: "Question - Option Name" (ex: "Who will be the cover athlete? - Darryn Peterson")
+      // O subtitle contém o nome específico da opção (atleta, candidato, etc.)
       const parts = question.split(' - ');
       let optionName = null;
       let baseQuestion = question;
       
       if (parts.length >= 2) {
-        // Tem subtitle na question
-        optionName = parts[parts.length - 1].trim(); // Ex: "Above 8%", "Above 9%"
-        baseQuestion = parts.slice(0, -1).join(' - '); // Ex: "How high will unemployment get?"
-      } else if (actualMarketData && actualMarketData.market_id) {
+        // Tem subtitle na question - este é o nome específico da opção
+        optionName = parts[parts.length - 1].trim(); // Ex: "Darryn Peterson", "Above 8%", "PPIZ"
+        baseQuestion = parts.slice(0, -1).join(' - '); // Ex: "Who will be the cover athlete?"
+        
+        // Verifica se é um nome próprio (atleta, candidato) ou um valor (Above 8%)
+        // Nomes próprios geralmente têm letras maiúsculas e espaços
+        const isProperName = /^[A-Z][a-z]+(\s+[A-Z][a-z]+)+/.test(optionName) || 
+                           (optionName.split(' ').length >= 2 && /[A-Z]/.test(optionName));
+        
+        // Se é um nome próprio, é definitivamente uma opção específica
+        // Se não, ainda pode ser (ex: "Above 8%")
+        if (optionName && optionName.length > 0) {
+          // YES = a opção específica acontece, NO = não acontece
+          const displayText = outcome === 'YES' 
+            ? `${optionName} (YES)`  // Ex: "Darryn Peterson (YES)" ou "Above 8% (YES)"
+            : `${optionName} (NO)`;   // Ex: "Darryn Peterson (NO)" ou "Above 8% (NO)"
+          
+          return {
+            contractName: optionName,  // Nome da opção específica
+            baseQuestion: baseQuestion,
+            option: optionName,  // Opção específica
+            hasMultipleOptions: true,  // Kalshi tem múltiplas opções por mercado
+            displayOption: displayText  // Mostra opção específica + YES/NO
+          };
+        }
+      }
+      
+      // Se não encontrou no subtitle, tenta extrair do market_id
+      if (actualMarketData && actualMarketData.market_id) {
         // Tenta extrair do market_id (formato: TICKER-OPTION_YES/NO)
         // Ex: "KXNEWPOPE-70-PPIZ_YES" -> opção é "PPIZ"
+        // Ex: "KXCOVER-DARRYN_YES" -> opção pode estar no ticker
         const marketIdParts = actualMarketData.market_id.split('_');
         if (marketIdParts.length >= 2) {
-          const tickerPart = marketIdParts[0]; // "KXNEWPOPE-70-PPIZ"
+          const tickerPart = marketIdParts[0]; // "KXCOVER-DARRYN" ou "KXNEWPOPE-70-PPIZ"
           const tickerParts = tickerPart.split('-');
+          
+          // Se o ticker tem 3+ partes, a última geralmente é a opção
           if (tickerParts.length >= 3) {
-            // Última parte do ticker geralmente é a opção
-            optionName = tickerParts[tickerParts.length - 1]; // "PPIZ"
+            optionName = tickerParts[tickerParts.length - 1]; // "PPIZ" ou "DARRYN"
+            // Tenta normalizar (capitalizar se for tudo maiúsculo)
+            if (optionName === optionName.toUpperCase() && optionName.length > 2) {
+              optionName = optionName.charAt(0) + optionName.slice(1).toLowerCase();
+            }
+          } else if (tickerParts.length === 2) {
+            // Pode ser formato "KXCOVER-DARRYN" onde DARRYN é a opção
+            const lastPart = tickerParts[1];
+            if (lastPart.length > 2 && lastPart === lastPart.toUpperCase()) {
+              optionName = lastPart.charAt(0) + lastPart.slice(1).toLowerCase();
+            }
           }
         }
       }
@@ -195,29 +232,41 @@ const DashboardModern = ({ user, onLogout }) => {
       if (optionName && optionName.length > 0) {
         // YES = a opção específica acontece, NO = não acontece
         const displayText = outcome === 'YES' 
-          ? `${optionName} (YES)`  // Ex: "Above 8% (YES)" ou "PPIZ (YES)"
-          : `${optionName} (NO)`;   // Ex: "Above 8% (NO)" ou "PPIZ (NO)"
+          ? `${optionName} (YES)`  // Ex: "Darryn Peterson (YES)" ou "Darryn (YES)"
+          : `${optionName} (NO)`;   // Ex: "Darryn Peterson (NO)" ou "Darryn (NO)"
         
         return {
           contractName: optionName,  // Nome da opção específica
-          baseQuestion: baseQuestion,
+          baseQuestion: baseQuestion || question,
           option: optionName,  // Opção específica
           hasMultipleOptions: true,  // Kalshi tem múltiplas opções por mercado
           displayOption: displayText  // Mostra opção específica + YES/NO
         };
       }
       
-      // Fallback: mostra a question completa + YES/NO
-      const displayText = outcome === 'YES' 
-        ? `${question} (YES)`
-        : `${question} (NO)`;
+      // Fallback: se não conseguiu extrair, verifica se a question indica múltiplas opções
+      // Perguntas como "Who will..." geralmente têm múltiplas opções
+      const hasMultipleOptionsQuestion = /^(who|which|what)\s+will/i.test(question) && 
+                                        !question.includes(' - '); // Se não tem subtitle, pode ter múltiplas opções
       
+      if (hasMultipleOptionsQuestion) {
+        // Avisa que há múltiplas opções mas não conseguiu identificar qual
+        return {
+          contractName: null,
+          baseQuestion: question,
+          option: outcome,
+          hasMultipleOptions: true,  // Indica que há múltiplas opções
+          displayOption: `${outcome} (Múltiplas opções disponíveis - verificar link)`  // Avisa que precisa verificar
+        };
+      }
+      
+      // Fallback final: mostra apenas YES/NO
       return {
         contractName: null,
         baseQuestion: question,
         option: outcome,
         hasMultipleOptions: false,
-        displayOption: displayText
+        displayOption: outcome
       };
     }
     
