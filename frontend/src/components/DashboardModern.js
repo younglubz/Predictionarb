@@ -179,13 +179,7 @@ const DashboardModern = ({ user, onLogout }) => {
         optionName = parts[parts.length - 1].trim(); // Ex: "Darryn Peterson", "Above 8%", "PPIZ"
         baseQuestion = parts.slice(0, -1).join(' - '); // Ex: "Who will be the cover athlete?"
         
-        // Verifica se é um nome próprio (atleta, candidato) ou um valor (Above 8%)
-        // Nomes próprios geralmente têm letras maiúsculas e espaços
-        const isProperName = /^[A-Z][a-z]+(\s+[A-Z][a-z]+)+/.test(optionName) || 
-                           (optionName.split(' ').length >= 2 && /[A-Z]/.test(optionName));
-        
-        // Se é um nome próprio, é definitivamente uma opção específica
-        // Se não, ainda pode ser (ex: "Above 8%")
+        // Se encontrou um nome/opção no subtitle, usa ele
         if (optionName && optionName.length > 0) {
           // YES = a opção específica acontece, NO = não acontece
           const displayText = outcome === 'YES' 
