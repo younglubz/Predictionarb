@@ -333,6 +333,7 @@ def serialize_market(market: Market) -> Dict:
         # PRIORIDADE 2: Se não encontrou no question, tenta do market_id
         # Mas só se não parecer ser um código genérico (números, códigos muito curtos)
         if not option_specific and market.market_id:
+            import re
             market_id_parts = market.market_id.split("_")
             if len(market_id_parts) >= 2:
                 ticker = market_id_parts[0]
@@ -341,8 +342,8 @@ def serialize_market(market: Market) -> Dict:
                 if len(ticker_parts) >= 2:
                     candidate = ticker_parts[-1]
                     # Verifica se não é uma data ou número genérico
-                    is_date = /^\d+[A-Z]{3}\d+$/i.match(candidate) or /^\d{4}$/.test(candidate)
-                    is_number = /^\d+$/.test(candidate)
+                    is_date = bool(re.match(r'^\d+[A-Z]{3}\d+$', candidate, re.IGNORECASE)) or bool(re.match(r'^\d{4}$', candidate))
+                    is_number = bool(re.match(r'^\d+$', candidate))
                     # Se é um código curto (2-4 letras), pode ser um nome/código válido
                     if not is_date and not is_number and len(candidate) >= 2:
                         option_specific = candidate
