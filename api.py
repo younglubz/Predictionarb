@@ -171,7 +171,19 @@ def serialize_probability_opportunity(opp) -> Dict:
                 "price": opp.probability_low,
                 "url": opp.market_low.url,
                 "liquidity": opp.market_low.liquidity,
-                "expires_at": opp.market_low.expires_at.isoformat() if opp.market_low.expires_at else None
+                "expires_at": opp.market_low.expires_at.isoformat() if opp.market_low.expires_at else None,
+                "market_id": opp.market_low.market_id,
+                "full_data": {
+                    "exchange": opp.market_low.exchange,
+                    "market_id": opp.market_low.market_id,
+                    "question": opp.market_low.question,
+                    "outcome": opp.market_low.outcome,
+                    "price": opp.probability_low,
+                    "volume_24h": opp.market_low.volume_24h,
+                    "liquidity": opp.market_low.liquidity,
+                    "expires_at": opp.market_low.expires_at.isoformat() if opp.market_low.expires_at else None,
+                    "url": opp.market_low.url
+                }
             },
             {
                 "exchange": opp.market_high.exchange,
@@ -180,7 +192,19 @@ def serialize_probability_opportunity(opp) -> Dict:
                 "price": opp.probability_high,
                 "url": opp.market_high.url,
                 "liquidity": opp.market_high.liquidity,
-                "expires_at": opp.market_high.expires_at.isoformat() if opp.market_high.expires_at else None
+                "expires_at": opp.market_high.expires_at.isoformat() if opp.market_high.expires_at else None,
+                "market_id": opp.market_high.market_id,
+                "full_data": {
+                    "exchange": opp.market_high.exchange,
+                    "market_id": opp.market_high.market_id,
+                    "question": opp.market_high.question,
+                    "outcome": opp.market_high.outcome,
+                    "price": opp.probability_high,
+                    "volume_24h": opp.market_high.volume_24h,
+                    "liquidity": opp.market_high.liquidity,
+                    "expires_at": opp.market_high.expires_at.isoformat() if opp.market_high.expires_at else None,
+                    "url": opp.market_high.url
+                }
             }
         ]
     }
@@ -215,7 +239,19 @@ def serialize_short_term_opportunity(opp) -> Dict:
                 "price": opp.probability_low,
                 "url": opp.market_low.url,
                 "liquidity": opp.market_low.liquidity,
-                "expires_at": opp.market_low.expires_at.isoformat() if opp.market_low.expires_at else None
+                "expires_at": opp.market_low.expires_at.isoformat() if opp.market_low.expires_at else None,
+                "market_id": opp.market_low.market_id,
+                "full_data": {
+                    "exchange": opp.market_low.exchange,
+                    "market_id": opp.market_low.market_id,
+                    "question": opp.market_low.question,
+                    "outcome": opp.market_low.outcome,
+                    "price": opp.probability_low,
+                    "volume_24h": opp.market_low.volume_24h,
+                    "liquidity": opp.market_low.liquidity,
+                    "expires_at": opp.market_low.expires_at.isoformat() if opp.market_low.expires_at else None,
+                    "url": opp.market_low.url
+                }
             },
             {
                 "exchange": opp.market_high.exchange,
@@ -224,7 +260,19 @@ def serialize_short_term_opportunity(opp) -> Dict:
                 "price": opp.probability_high,
                 "url": opp.market_high.url,
                 "liquidity": opp.market_high.liquidity,
-                "expires_at": opp.market_high.expires_at.isoformat() if opp.market_high.expires_at else None
+                "expires_at": opp.market_high.expires_at.isoformat() if opp.market_high.expires_at else None,
+                "market_id": opp.market_high.market_id,
+                "full_data": {
+                    "exchange": opp.market_high.exchange,
+                    "market_id": opp.market_high.market_id,
+                    "question": opp.market_high.question,
+                    "outcome": opp.market_high.outcome,
+                    "price": opp.probability_high,
+                    "volume_24h": opp.market_high.volume_24h,
+                    "liquidity": opp.market_high.liquidity,
+                    "expires_at": opp.market_high.expires_at.isoformat() if opp.market_high.expires_at else None,
+                    "url": opp.market_high.url
+                }
             }
         ]
     }
