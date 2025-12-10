@@ -166,10 +166,11 @@ const DashboardModern = ({ user, onLogout }) => {
       };
     }
     
-    // Para Kalshi: extrai opção específica do subtitle ou market_id
+    // Para Kalshi: extrai opção específica do subtitle ou market_id (igual PredictIt)
     if (exchangeLower.includes('kalshi')) {
       // Kalshi pode ter formato: "Question - Option Name" (ex: "Who will be the cover athlete? - Darryn Peterson")
       // O subtitle contém o nome específico da opção (atleta, candidato, etc.)
+      // Formato similar ao PredictIt: "Question - ContractName"
       const parts = question.split(' - ');
       let optionName = null;
       let baseQuestion = question;
@@ -179,19 +180,23 @@ const DashboardModern = ({ user, onLogout }) => {
         optionName = parts[parts.length - 1].trim(); // Ex: "Darryn Peterson", "Above 8%", "PPIZ"
         baseQuestion = parts.slice(0, -1).join(' - '); // Ex: "Who will be the cover athlete?"
         
-        // Se encontrou um nome/opção no subtitle, usa ele
+        // Remove "YES" ou "NO" do final se existir (igual PredictIt)
+        const cleanOption = optionName.replace(/\s+(YES|NO)$/i, '').trim();
+        if (cleanOption) {
+          optionName = cleanOption;
+        }
+        
+        // Se encontrou um nome/opção no subtitle, usa ele (igual PredictIt)
         if (optionName && optionName.length > 0) {
-          // YES = a opção específica acontece, NO = não acontece
-          const displayText = outcome === 'YES' 
-            ? `${optionName} (YES)`  // Ex: "Darryn Peterson (YES)" ou "Above 8% (YES)"
-            : `${optionName} (NO)`;   // Ex: "Darryn Peterson (NO)" ou "Above 8% (NO)"
+          // Formato igual PredictIt: "OptionName (YES)" ou "OptionName (NO)"
+          const displayText = `${optionName} (${outcome})`; // Ex: "Darryn Peterson (YES)" ou "Above 8% (NO)"
           
           return {
-            contractName: optionName,  // Nome da opção específica
+            contractName: optionName,  // Nome da opção específica (igual PredictIt)
             baseQuestion: baseQuestion,
-            option: optionName,  // Opção específica
+            option: optionName,  // Opção específica (igual PredictIt)
             hasMultipleOptions: true,  // Kalshi tem múltiplas opções por mercado
-            displayOption: displayText  // Mostra opção específica + YES/NO
+            displayOption: displayText  // Mostra opção específica + YES/NO (igual PredictIt)
           };
         }
       }
