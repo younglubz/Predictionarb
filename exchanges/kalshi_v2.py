@@ -194,7 +194,9 @@ class KalshiV2Exchange(ExchangeBase):
             subtitle = market_data.get("subtitle", "")
             
             # Combina title e subtitle para formar a pergunta
+            # O subtitle contém a opção específica (ex: "Above 8%", "Above 9%")
             question = f"{title}"
+            option_name = subtitle if subtitle else None  # Guarda o nome da opção específica
             if subtitle:
                 question += f" - {subtitle}"
             
@@ -257,11 +259,14 @@ class KalshiV2Exchange(ExchangeBase):
             yes_price = (yes_bid + yes_ask) / 2 if yes_ask > 0 else yes_bid
             # Kalshi: nao filtra aqui, deixa o filtro global fazer isso
             if yes_price > 0:
+                # Para Kalshi, o outcome específico está no subtitle
+                # Formato: "Question - Option Name" (ex: "How high will unemployment get? - Above 8%")
+                # O outcome YES significa que a opção específica (subtitle) vai acontecer
                 market_yes = Market(
                     exchange=self.name,
                     market_id=f"{ticker}_YES",
-                    question=question,
-                    outcome="YES",
+                    question=question,  # Já contém "title - subtitle" com a opção específica
+                    outcome="YES",  # YES = a opção específica (subtitle) acontece
                     price=yes_price,
                     volume_24h=volume_24h,
                     liquidity=liquidity,
@@ -274,11 +279,12 @@ class KalshiV2Exchange(ExchangeBase):
             no_price = (no_bid + no_ask) / 2 if no_ask > 0 else no_bid
             # Kalshi: nao filtra aqui, deixa o filtro global fazer isso
             if no_price > 0:
+                # NO = a opção específica (subtitle) NÃO acontece
                 market_no = Market(
                     exchange=self.name,
                     market_id=f"{ticker}_NO",
-                    question=question,
-                    outcome="NO",
+                    question=question,  # Já contém "title - subtitle" com a opção específica
+                    outcome="NO",  # NO = a opção específica (subtitle) não acontece
                     price=no_price,
                     volume_24h=volume_24h,
                     liquidity=liquidity,

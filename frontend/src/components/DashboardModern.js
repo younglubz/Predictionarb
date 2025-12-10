@@ -156,29 +156,36 @@ const DashboardModern = ({ user, onLogout }) => {
       };
     }
     
-    // Para Kalshi: pode ter outcomes específicos
+    // Para Kalshi: extrai opção específica do subtitle
     if (exchangeLower.includes('kalshi')) {
-      // Kalshi geralmente tem Yes/No, mas pode ter nomes específicos
-      // Verifica se a question indica um outcome específico
+      // Kalshi usa formato: "Question - Option Name" (ex: "How high will unemployment get? - Above 8%")
+      // O subtitle contém a opção específica
       const parts = question.split(' - ');
       if (parts.length >= 2) {
-        const lastPart = parts[parts.length - 1].trim();
-        if (!/^(yes|no)$/i.test(lastPart)) {
-          return {
-            contractName: lastPart,
-            baseQuestion: parts.slice(0, -1).join(' - '),
-            option: lastPart,
-            hasMultipleOptions: true,
-            displayOption: `${lastPart} (${outcome})`
-          };
-        }
+        const optionName = parts[parts.length - 1].trim(); // Ex: "Above 8%", "Above 9%"
+        const baseQuestion = parts.slice(0, -1).join(' - '); // Ex: "How high will unemployment get?"
+        
+        // YES = a opção específica acontece, NO = não acontece
+        const displayText = outcome === 'YES' 
+          ? `${optionName} (YES)`  // Ex: "Above 8% (YES)"
+          : `${optionName} (NO)`;   // Ex: "Above 8% (NO)"
+        
+        return {
+          contractName: optionName,  // Nome da opção específica
+          baseQuestion: baseQuestion,
+          option: optionName,  // Opção específica
+          hasMultipleOptions: true,  // Kalshi tem múltiplas opções por mercado
+          displayOption: displayText  // Mostra opção específica + YES/NO
+        };
       }
+      // Fallback: se não conseguir extrair, usa YES/NO genérico
+      const optionText = outcome === 'YES' ? 'YES' : 'NO';
       return {
         contractName: null,
         baseQuestion: question,
-        option: outcome === 'YES' ? 'YES' : 'NO',
+        option: optionText,
         hasMultipleOptions: false,
-        displayOption: outcome === 'YES' ? 'YES' : 'NO'
+        displayOption: optionText
       };
     }
     
